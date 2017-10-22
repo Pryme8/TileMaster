@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html" charset="utf-8"/>
+    <title>tileMap</title>
+    <script src="https://cdn.babylonjs.com/babylon.worker.js"></script>
+    <style>
+        html, body {
+            overflow: hidden;
+            width   : 100%;
+            height  : 100%;
+            margin  : 0;
+            padding : 0;
+			font-size:16px;
+			-moz-box-sizing: border-box;
+			-webkit-box-sizing: border-box;
+			box-sizing: border-box;
+        }
+		body *{
+			-moz-box-sizing: border-box;
+			-webkit-box-sizing: border-box;
+			box-sizing: border-box;
+		}
+		*:before, *:after{
+			-moz-box-sizing: border-box;
+			-webkit-box-sizing: border-box;
+			box-sizing: border-box;
+		}
+		#renderCanvas {
+            width   : 100%;
+            height  : 100%;
+            touch-action: none;
+        }		
+    </style>
+</head>
+<body>
+<canvas id="renderCanvas"></canvas>
+	
+<script>
+TM = function(target, args){
+	this.canvas = document.getElementById(target) || target;
+	args = args || {};
+	
+	this.tileScale = args.tileScale || 1.0;
+	this.tileSize = args.tileSize || 16.0;
+	this.offset = args.offset || new BABYLON.Vector2.Zero();
+	
+	this.layers = [];
+	this.init(args);	
+	return this;
+};
+TM.prototype = {
+	init : function(args){
+		this._loadingBuild(args);
+		this._asycBuffer();
+		this._startScene();
+		this._buildShader();
+		//this._startRender();
+		
+	},
+	_loadingBuild : function(){
+		this._tasks = 1;
+		this._ready = false;
+		this._ls = document.createElement('div');
+		this._ls.setAttribute('style', 'position:absolute;display:block;left:50%;top:50%;transform:translate(-50% , -50%);');
+		this._ls.innerHTML = 'LOADING!';
+		document.body.appendChild(this._ls);		
+	},
+	_asycBuffer : function(){
+		this._ready = true;
+		if(!this._atlas){this._ready=false;}
+		if(this._tasks>0){this._ready=false;}
+		for(i=0; i<this.layers.length; i++){
+			var l = this.layers[i];		
+			if(!l._atlasSet || !l._tilesSet){this._ready=false;}
+		}
+		if(this._ready){
+			this._ls.remove();
+			this._startRender();
+			this._resize();
+			//console.log('READY!');
+		}else{
+			//console.log('NOT READY!');
+			var self = this;
+			setTimeout(function(){self._asycBuffer();}, 1000/30);
+		}
+	},
+	_startScene : function(){
+		var canvas = this.canvas;
+		var engine = new BABYLON.Engine(canvas, true);
+		  
+		var scene = new BABYLON.Scene(engine);
+			scene.clearColor = new BABYLON.Color3(0, 0, 0);
+			var camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 0, -10), scene);
+			camera.setTarget(BABYLON.Vector3.Zero());
+			var light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+			light.intensity = .5;
+				
+		this.engine = engine;
+		this.scene = scene;
+		
+	},
+	_buildShader : function(){
+var _vs =
+`
+precision highp float;
+// Attributes
+attribute vec3 position;
+attribute vec3 normal;
+attribute vec2 uv;
+// Uniforms
+uniform mat4 worldViewProjection;
+uniform float time;
+uniform vec2 viewOffset;
+uniform vec2 viewportSize;
+uniform vec2 inverseTileTextureSize;
+uniform float tileSize;
+// Varying
+varying vec3 vPosition;
+varying vec2 vUV;
+varying vec2 pixelCoord;
+varying vec2 texCoord;
+void main() {
+    vec4 p = vec4( position, 1. );
+    vPosition = position;	
+	gl_Position = worldViewProjection * p;
+	vUV = uv;
+	pixelCoord = (uv * viewportSize) + viewOffset;
+	texCoord = pixelCoord * inverseTileTextureSize * (1.0/tileSize);
+}
+`;
+var _fs =
+`
+precision highp float;
+uniform float time;
+uniform sampler2D tiles;
+uniform sampler2D sprites;
+uniform vec2 viewportSize;
+uniform float tileSize;
+uniform vec2 inverseSpriteTextureSize;
+uniform vec2 inverseTileTextureSize;
+varying vec3 vPosition;
+varying vec2 vUV;
+varying vec2 pixelCoord;
+varying vec2 texCoord;
+void main()
+{
+vec4 tile = texture2D(tiles, texCoord);
+if(tile.x == 1.0 && tile.y == 1.0) { discard; }
+vec2 spriteOffset = floor(tile.xy * 256.0) * tileSize;
+vec2 spriteCoord = mod(pixelCoord, tileSize);
+gl_FragColor =  texture2D(sprites, (spriteOffset + spriteCoord) * inverseSpriteTextureSize);
+}
+`;
+	BABYLON.Effect.ShadersStore["basicVertexShader"] = _vs;
+	BABYLON.Effect.ShadersStore["basicFragmentShader"] = _fs;
+	this._tasks--;
+	var self = this;
+		this.scene.registerBeforeRender(()=>{
+			self._update();
+		});	
+	},
+	_startRender : function(){
+		var self = this;	
+		self.engine.runRenderLoop(function () {
+			self.scene.render();
+		});
+		window.addEventListener("resize", function () {
+			self.engine.resize();
+			self._resize();
+		}); 
+	
+	},
+	setAtlas : function(url){
+	var self = this;
+		this._atlas = new BABYLON.Texture(url, this.scene, true, false, 1, ()=>{
+			self.inverseSpriteTextureSize = new BABYLON.Vector2(1/self._atlas._texture._width, 1/self._atlas._texture._height);
+			console.log("inverseSpriteTextureSize", self.inverseSpriteTextureSize);
+		});
+	},
+	addLayer : function(url, args){
+		this._tasks++;
+		var layer = new TM.LAYER(url, args || {}, this);
+		this.layers.push(layer);
+		return layer;
+	},
+	_resize : function(){
+		console.log('RESIZE!');
+		for(var i=0; i<this.layers.length; i++){
+			var l = this.layers[i];
+			l.viewportSize = new BABYLON.Vector2(this.canvas.width, this.canvas.height);
+			l.viewportScaled = new BABYLON.Vector2(this.canvas.width/(this.tileScale+l.scale), this.canvas.height/(this.tileScale+l.scale));
+			l._build();
+		}
+	},
+	_update : function(){
+		for(var i=0; i<this.layers.length; i++){
+			var l = this.layers[i];
+			l.shader.setVector2('viewOffset', this.offset.multiply(l.scrollSpeed));
+		}
+	}
+};
+TM.LAYER = function(url, args, parent){
+this.parent = parent;
+this.repeat = args.repeat || false;
+this.scale = args.scale || 0;
+this.scrollSpeed = args.scrollSpeed || new BABYLON.Vector2(1.0,1.0);
+this.viewportSize = new BABYLON.Vector2(this.parent.canvas.width, this.parent.canvas.height);
+this.viewportScaled = new BABYLON.Vector2(this.parent.canvas.width/(this.parent.tileScale+this.scale), this.parent.canvas.height/(this.parent.tileScale+this.scale));
+this._atlasSet = false;
+this._tilesSet = false;
+var self = this;
+	this._tiles = new BABYLON.Texture(url, this.scene, true, true, 1, ()=>{			
+			self.inverseTextureSize = new BABYLON.Vector2(1/self._tiles._texture._width, 1/self._tiles._texture._height);
+			console.log("inverseTextureSize", self.inverseTextureSize);
+			self._setShader();
+			self.parent._tasks--;
+	});
+	if(!this.repeat){
+	this._tiles.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+	this._tiles.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+	}
+};
+TM.LAYER.prototype = {
+	_build : function(){
+		this._setShader();
+		this._createPlane();
+	},
+	_createPlane : function(){
+		if(this.plane)this.plane.dispose();
+		var scene = this.parent.scene;
+		var engine = this.parent.engine;
+		var c = scene.activeCamera;
+		var fov = c.fov;
+		var aspectRatio = engine.getAspectRatio(c);
+		var d = c.position.length();
+		var y = 2 * d * Math.tan(fov / 2);
+		var x = y * aspectRatio;		
+		this.plane = BABYLON.MeshBuilder.CreatePlane("plane", {width: x, height:y}, scene);
+		this.plane.material = this.shader;
+	},
+	_setShader : function(){		
+		if(!this.shader){
+		this.shader = new BABYLON.ShaderMaterial("basicShader", this.parent.scene, {
+			vertex: "basic",
+			fragment: "basic",
+			},{
+			attributes: ["position", "normal", "uv"],
+			uniforms: ["world", "worldView", "worldViewProjection", "view", "viewOffset", "viewportSize", "inverseTileTextureSize", "inverseSpriteTextureSize", "tileSize", "time", "projection"]
+		});
+		}
+		if(!this._atlasSet){
+			this.shader.setTexture("sprites", this.parent._atlas);
+			this._atlasSet = true;
+		}
+		if(!this._tilesSet){
+			this.shader.setTexture("tiles", this._tiles);
+			this._tilesSet = true;
+		}		
+		this.shader.setVector2('viewportSize', this.viewportScaled);
+		this.shader.setVector2('inverseTileTextureSize', this.inverseTextureSize);
+		this.shader.setVector2('inverseSpriteTextureSize', this.parent.inverseSpriteTextureSize);
+		this.shader.setFloat('tileSize', this.parent.tileSize);
+	},
+};
+document.addEventListener("DOMContentLoaded", () => {
+	tm = new TM('renderCanvas', {tileScale:4, tileSize:16});
+	tm.setAtlas('./imgs/Tile.png');
+	tm.addLayer('./imgs/layer0.png', {repeat:true, scale:-0.5, scrollSpeed:new BABYLON.Vector2(0.8, 0.8)});
+	var l1 = tm.addLayer('./imgs/layer1.png', {repeat:false});
+	var x=0,y=0;
+	var xd=1,yd=1;
+	setInterval(()=>{		
+		tm.offset.x = x;
+		tm.offset.y = y;
+		x+=xd;
+		y+=yd;
+		if(x>600 || x<0){xd*=-1;}
+		if(y>200 || y<0){yd*=-1;}
+	}, 1000/60);
+	
+	
+},false);
+</script>
+
+    
+	
+	
+</body>
+</html>
