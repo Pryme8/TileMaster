@@ -156,50 +156,25 @@ void main()
 
 vec4 tile = texture2D(tiles, texCoord);
 if(tile.x == 1.0 && tile.y == 1.0) { discard; }
-vec4 aTile = texture2D(animationMap, texCoord.xy);
+vec4 aTile = texture2D(animationMap, tile.xy);
 if(aTile.a != 0.0) { 
 float aS = aTile.b;	
-float _t = (tan(time*2.0)+1.0)/2.0;
+float _t = (tan(time)+1.0)/2.0;
 
-if(aS<_t){	
+if(aS>_t){	
 	for(int i=0; i<maxFrames; i++){
 		aTile = texture2D(animationMap, aTile.xy);
 			if(aTile.a == 0.0)break;
 			aS = aTile.b;
-			if(aS<_t){
+			if(aS>_t){
 				tile.xy = aTile.xy;
 				break;
 			}
-	}
-}
-
-/*
-if(aS > _t){
-aTile = texture2D(animationMap, aTile.xy);
-tile.xy = aTile.xy;
-}*/
-
-
-
-/*	if(aTile.a > 1.0){
-		int i =0;
-		while(aS > _t){
-		aTile = texture2D(animationMap, aTile.xy);
-		aS = aTile.b;
-		i++;
-		if(aS > _t || i == 4){
-		tile.xy = aTile.xy;
-		break;
 		}
 	}
 }
 
-
-*/
-
-}
-
-vec2 spriteOffset = (floor((aTile.xy) * 256.0) * tileSize);
+vec2 spriteOffset = (floor((tile.xy) * 256.0) * tileSize);
 
 vec2 spriteCoord = mod(pixelCoord, tileSize);
 vec4 tSample = texture2D(sprites, (spriteOffset + spriteCoord) * inverseSpriteTextureSize);
