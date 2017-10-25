@@ -115,6 +115,7 @@ uniform float time;
 uniform vec2 viewOffset;
 uniform vec2 viewportSize;
 uniform vec2 inverseTileTextureSize;
+uniform float layerHeight;
 uniform float tileSize;
 // Varying
 varying vec3 vPosition;
@@ -128,6 +129,7 @@ void main() {
 	vUV = uv;
 	vUV.y = vUV.y * -1.;
 	pixelCoord = (vUV * viewportSize) + viewOffset;
+	pixelCoord.y = pixelCoord.y + (viewportSize.y*0.5) + ((layerHeight*tileSize)/2.0);
 	texCoord = pixelCoord * inverseTileTextureSize * (1.0/tileSize);
 }
 `;
@@ -156,23 +158,6 @@ void main()
 
 vec4 tile = texture2D(tiles, texCoord);
 if(tile.x == 1.0 && tile.y == 1.0) { discard; }
-vec4 aTile = texture2D(animationMap, tile.xy);
-if(aTile.a != 0.0) { 
-float aS = aTile.b;	
-float _t = (tan(time)+1.0)/2.0;
-
-if(aS>_t){	
-	for(int i=0; i<maxFrames; i++){
-		aTile = texture2D(animationMap, aTile.xy);
-			if(aTile.a == 0.0)break;
-			aS = aTile.b;
-			if(aS>_t){
-				tile.xy = aTile.xy;
-				break;
-			}
-		}
-	}
-}
 
 vec2 spriteOffset = (floor((tile.xy) * 256.0) * tileSize);
 
@@ -262,9 +247,10 @@ var self = this;
 			self._setShader();
 			self.parent._tasks--;
 	});
+	
 	if(!this.repeat){
-	this._tiles.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-	this._tiles.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+		this._tiles.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+		this._tiles.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
 	}
 };
 TM.LAYER.prototype = {
@@ -298,7 +284,7 @@ TM.LAYER.prototype = {
 			"view", "viewOffset",
 			"viewportSize",
 			"inverseTileTextureSize",
-			"inverseSpriteTextureSize",
+			"inverseSpriteTextureSize","layerHeight",
 			"tileSize", "time", "projection",
 			"globalLight", "fps"]
 		});
@@ -320,15 +306,16 @@ TM.LAYER.prototype = {
 		this.shader.setVector2('inverseSpriteTextureSize', this.parent.inverseSpriteTextureSize);
 		this.shader.setVector3('globalLight', new BABYLON.Vector3(1.0, 1.0, 1.0));
 		this.shader.setFloat('tileSize', this.parent.tileSize);
+		this.shader.setFloat('layerHeight', this._tiles._texture._baseHeight);
 		this.shader.setFloat('fps', 60);
 	},
 };
 document.addEventListener("DOMContentLoaded", () => {
-	tm = new TM('renderCanvas', {tileScale:4, tileSize:16});
-	tm.setAtlas('./imgs/ani_atlas_test.png');
-	tm.setAnimations('./imgs/animation_atlas_test.png');
+	tm = new TM('renderCanvas', {tileScale:1, tileSize:32});
+	tm.setAtlas('./imgs/test.png');
+	tm.setAnimations('./imgs/ani-map-test.png');
 	//tm.addLayer('layer0.png', {repeat:true, scale:-0.5, scrollSpeed:new BABYLON.Vector2(0.8, 0.8)});
-	var l1 = tm.addLayer('./imgs/ani_layer.png', {repeat:true});
+	var l1 = tm.addLayer('./imgs/layer1.png', {repeat:false});
 },false);
 </script>
 
