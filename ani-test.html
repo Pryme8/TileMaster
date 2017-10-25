@@ -147,8 +147,6 @@ uniform vec2 inverseSpriteTextureSize;
 uniform vec2 inverseTileTextureSize;
 uniform vec3 globalLight;
 
-#define maxFrames 16
-
 varying vec3 vPosition;
 varying vec2 vUV;
 varying vec2 pixelCoord;
@@ -157,7 +155,12 @@ void main()
 {
 
 vec4 tile = texture2D(tiles, texCoord);
-if(tile.x == 1.0 && tile.y == 1.0) { discard; }
+if(tile.x == 1.0 && tile.y == 1.0 || tile.a == 0.0) { discard; }
+vec4 aTile = texture2D(animationMap, tile.xy);
+if(aTile.a != 0.0){
+int _t = int(mod(time*2.0, 4.));
+if(_t==1){tile.x = tile.x+tile.x;}
+}
 
 vec2 spriteOffset = (floor((tile.xy) * 256.0) * tileSize);
 
@@ -167,6 +170,7 @@ vec3 color = tSample.xyz;
 float alpha = tSample.a;
 
 color = color * globalLight;
+
 
 gl_FragColor =  vec4(color, alpha);
 }
