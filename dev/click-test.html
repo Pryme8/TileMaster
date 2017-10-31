@@ -182,6 +182,7 @@ uniform vec2 inverseTileTextureSize;
 uniform vec3 globalLight;
 
 uniform float lightMapSet;
+uniform float repeat;
 
 varying vec3 vPosition;
 varying vec2 vUV;
@@ -211,7 +212,7 @@ vec2 spriteOffset = floor(tile.xy * 256.0) * tileSize;
 vec2 spriteCoord = mod(pixelCoord, tileSize);
 vec4 tSample = texture2D(sprites, (spriteOffset + spriteCoord) * inverseSpriteTextureSize);
 vec3 color = tSample.xyz;
-if(texCoord.x > 1.0  || texCoord.x < 0.0 || texCoord.y > 1.0 || texCoord.y < 0.0){ color = vec3(0.0);}
+if((texCoord.x > 1.0  || texCoord.x < 0.0 || texCoord.y > 1.0 || texCoord.y < 0.0) && repeat == 0.0){ discard;}
 
 float alpha = tSample.a;
 
@@ -412,6 +413,11 @@ var self = this;
 	if(!this.repeat){
 		this._tiles.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
 		this._tiles.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+		this.shader.setFloat('repeat', 0);
+	}else{
+		this._tiles.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE; 
+		this._tiles.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
+		this.shader.setFloat('repeat', 1);
 	}
 };
 TM.DYLAYER.prototype = {
@@ -470,7 +476,8 @@ TM.DYLAYER.prototype = {
 		this.shader.setFloat('tileSize', this.parent.tileSize);
 		this.shader.setFloat('layerHeight', this._tiles._texture._baseHeight);
 		this.shader.setFloat('fps', 60);
-		this.shader.setFloat('lightMapSet', 0);	
+		this.shader.setFloat('lightMapSet', 0);
+		
 	},
 	addLightMap : function(url){
 		this.parent._tasks++;
@@ -490,11 +497,10 @@ document.addEventListener("DOMContentLoaded", () => {
 	tm.setAnimations('./imgs/ani-map-test.png');
 	//tm.addLayer('layer0.png', {repeat:true, scale:-0.5, scrollSpeed:new BABYLON.Vector2(0.8, 0.8)});
 	//var l1 = tm.addLayer('./imgs/ani-test-layer.png', {repeat:false});
-	var l1 = tm.addDynamicLayer({repeat:false, size:new BABYLON.Vector2(32,8)});
+	var l1 = tm.addDynamicLayer({repeat:true, size:new BABYLON.Vector2(32,8)});
 	//l1.addLightMap('./imgs/light-map-test.png');
 },false);
 </script>
-
     
 	
 	
