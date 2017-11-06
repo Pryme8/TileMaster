@@ -94,6 +94,7 @@ TM.prototype = {
 			scene.clearColor = new BABYLON.Color3(1, 1, 1);
 			var camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 0, -10), scene);
 			camera.setTarget(BABYLON.Vector3.Zero());
+			this.camera = camera;
 			var light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
 			light.intensity = .5;
 				
@@ -103,8 +104,7 @@ TM.prototype = {
 	},
 	_buildShader : function(){
 var _vs =
-`
-precision highp float;
+`precision highp float;
 // Attributes
 attribute vec3 position;
 attribute vec3 normal;
@@ -134,9 +134,8 @@ void main() {
 }
 `;
 var _fs =
-`
-precision highp float;
-#define pU 0.00392156862
+`precision highp float;
+
 uniform float time;
 uniform float fps;
 uniform sampler2D tiles;
@@ -153,19 +152,96 @@ varying vec2 vUV;
 varying vec2 pixelCoord;
 varying vec2 texCoord;
 
+const float pU = 1./255.;
+
 void main(){
 vec4 tile = texture2D(tiles, texCoord);
 if((tile.x == 1.0 && tile.y == 1.0) ) { discard; }
+
 vec2 aLoc = (tile.xy/pU)/4.0;
 
 vec4 aTile = texture2D(animationMap, aLoc);
+
 if(aTile.a > 0.0){
- int _t = int(mod(time, 3.));
+ float t = (time*aTile.a)/aTile.b;
+ int _t; 
+  
+ /*
+	x:1 -
+	[1][2]
+	x:2 -
+	[1]
+	[2]
+	x:3 - does not work?
+	x:4 -
+	[1][2][3][4]
+	x:5 - 
+	[1][2]
+	[3][4]
+	x:5 -
+	[1][2][3]
+	[4][5][6]
+	x:6,7 - do not work?
+	x:8 - 
+	[1][2]
+	[3][4]
+	[5][6]
+	x:9 -
+	[1][2][3]
+	[4][5][6]
+	[7][8][9]
+ */
+ 
+ //x:1
  if(aTile.x == pU){
+	_t = int(mod(t, 2.));
+	if(_t == 1){tile.x+=pU;}
+ }
+ //x:2
+  if(aTile.x == pU*2.){
+	_t = int(mod(t, 2.));
+	if(_t == 1){tile.y+=pU;}
+ }
+ //Why does three not work?
+  //x:4
+  if(aTile.x == pU*4.){
+	_t = int(mod(t, 4.));
 	if(_t == 1){tile.x+=pU;}
 	if(_t == 2){tile.x+=pU*2.;}
 	if(_t == 3){tile.x+=pU*3.;}
  }
+  //x:5
+  if(aTile.x == pU*5.){
+	_t = int(mod(t, 6.));
+	if(_t == 1){tile.x+=pU;}
+	if(_t == 2){tile.x+=pU*2.;}
+	if(_t == 3){tile.y+=pU;}
+	if(_t == 4){tile.x+=pU;tile.y+=pU;}
+	if(_t == 5){tile.x+=pU*2.;tile.y+=pU;}
+ }
+ //6, 7 also do not work?
+ //x:8
+  if(aTile.x == pU*8.){
+	_t = int(mod(t, 6.));
+	if(_t == 1){tile.x+=pU;}
+	if(_t == 2){tile.y+=pU;}
+	if(_t == 3){tile.x+=pU;tile.y+=pU;}
+	if(_t == 4){tile.y+=pU*2.;}
+	if(_t == 5){tile.x+=pU;tile.y+=pU*2.;}
+ }
+  //x:9
+  if(aTile.x == pU*9.){
+	_t = int(mod(t, 9.));
+	if(_t == 1){tile.x+=pU;}
+	if(_t == 2){tile.x+=pU*2.;}
+	if(_t == 3){tile.y+=pU;}
+	if(_t == 4){tile.x+=pU;tile.y+=pU;}
+	if(_t == 5){tile.x+=pU*2.;tile.y+=pU;}
+	if(_t == 6){tile.y+=pU*2.;}
+	if(_t == 7){tile.x+=pU;tile.y+=pU*2.;}
+	if(_t == 8){tile.x+=pU*2.;tile.y+=pU*2.;}
+ }
+ 
 }
 
 
@@ -183,6 +259,9 @@ gl_FragColor =  vec4(color, alpha);
 `;
 	BABYLON.Effect.ShadersStore["basicVertexShader"] = _vs;
 	BABYLON.Effect.ShadersStore["basicFragmentShader"] = _fs;
+	
+
+	
 	this._tasks--;
 	var self = this;
 		this.scene.registerBeforeRender(()=>{
@@ -325,7 +404,7 @@ TM.LAYER.prototype = {
 document.addEventListener("DOMContentLoaded", () => {
 	tm = new TM('renderCanvas', {tileScale:2, tileSize:16});
 	tm.setAtlas('./imgs/number_atlas.png');
-	tm.setAnimations('./imgs/ani-map-test.png');
+	tm.setAnimations('./imgs/ani-map-test2.png');
 	//tm.addLayer('layer0.png', {repeat:true, scale:-0.5, scrollSpeed:new BABYLON.Vector2(0.8, 0.8)});
 	var l1 = tm.addLayer('./imgs/ani-test-layer.png', {repeat:false});
 },false);
