@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html" charset="utf-8"/>
+    <title>tileMap</title>
+    <script src="https://cdn.babylonjs.com/babylon.worker.js"></script>
+    <style>
+        html, body {
+            overflow: hidden;
+            width   : 100%;
+            height  : 100%;
+            margin  : 0;
+            padding : 0;
+			font-size:16px;
+			-moz-box-sizing: border-box;
+			-webkit-box-sizing: border-box;
+			box-sizing: border-box;
+        }
+		body *{
+			-moz-box-sizing: border-box;
+			-webkit-box-sizing: border-box;
+			box-sizing: border-box;
+		}
+		*:before, *:after{
+			-moz-box-sizing: border-box;
+			-webkit-box-sizing: border-box;
+			box-sizing: border-box;
+		}
+		#renderCanvas {
+            width   : 100%;
+            height  : 100%;
+            touch-action: none;
+        }		
+    </style>
+</head>
+<body>
+<canvas id="renderCanvas"></canvas>
+	
+<script>
+TM = function(target, args){
+	this.canvas = document.getElementById(target) || target;
+	args = args || {};
+	
+	this.tileScale = args.tileScale || 1.0;
+	this.tileSize = args.tileSize || 16.0;
+	this.offset = args.offset || new BABYLON.Vector2.Zero();
+	
+	this.layers = [];
+	this.time = 0;
+	this.init(args);	
+	return this;
+};
+TM.prototype = {
+	init : function(args){
+		this._loadingBuild(args);
+		this._asycBuffer();
+		this._startScene();
+		this._buildShader();
+		//this._startRender();
+		
+	},
+	_loadingBuild : function(){
+		this._tasks = 1;
+		this._ready = false;
+		this._ls = document.createElement('div');
+		this._ls.setAttribute('style', 'position:absolute;display:block;left:50%;top:50%;transform:translate(-50% , -50%);');
+		this._ls.innerHTML = 'LOADING!';
+		document.body.appendChild(this._ls);		
+	},
+	_asycBuffer : function(){
+		this._ready = true;
+		if(!this._atlas){this._ready=false;}
+		if(this._tasks>0){this._ready=false;}
+		for(i=0; i<this.layers.length; i++){
+			var l = this.layers[i];		
+			if(!l._atlasSet || !l._tilesSet){this._ready=false;}
+		}
+		if(this._ready){
+			this._ls.remove();
+			this._startRender();
+			this._resize();
+			//console.log('READY!');
+		}else{
+			//console.log('NOT READY!');
+			var self = this;
+			setTimeout(function(){self._asycBuffer();}, 1000/30);
+		}
+	},
+	_startScene : function(){
+		var canvas = this.canvas;
+		var engine = new BABYLON.Engine(canvas, true);
+		  
+		var scene = new BABYLON.Scene(engine);
+			scene.clearColor = new BABYLON.Color3(1, 1, 1);
+			var camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 0, -10), scene);
+			camera.setTarget(BABYLON.Vector3.Zero());
+			this.camera = camera;
+			var light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+			light.intensity = .5;
+				
+		this.engine = engine;
+		this.scene = scene;
+		
+	},
+	_buildShader : function(){
+var _vs =
+`precision highp float;
+// Attributes
+attribute vec3 position;
+attribute vec3 normal;
+attribute vec2 uv;
+// Uniforms
+uniform mat4 worldViewProjection;
+uniform float time;
+uniform vec2 viewOffset;
+uniform vec2 viewportSize;
+uniform vec2 inverseTileTextureSize;
+uniform float layerHeight;
+uniform float tileSize;
+// Varying
+varying vec3 vPosition;
+varying vec2 vUV;
+varying vec2 pixelCoord;
+varying vec2 texCoord;
+void main() {
+    vec4 p = vec4( position, 1. );
+    vPosition = p.xyz;	
+	gl_Position = worldViewProjection * p;
+	vUV = uv;
+	vUV.y = vUV.y * -1.;
+	pixelCoord = (vUV * viewportSize) + viewOffset;
+	pixelCoord.y = pixelCoord.y + (viewportSize.y*0.5) + ((layerHeight*tileSize)/2.0);
+	texCoord = pixelCoord * inverseTileTextureSize * (1.0/tileSize);
+}
+`;
+var _fs =
+`precision highp float;
+
+uniform float time;
+uniform float fps;
+uniform sampler2D tiles;
+uniform sampler2D animationMap;
+uniform sampler2D sprites;
+uniform vec2 viewportSize;
+uniform float tileSize;
+uniform vec2 inverseSpriteTextureSize;
+uniform vec2 inverseTileTextureSize;
+uniform vec3 globalLight;
+
+uniform float overlayCount;
+
+uniform sampler2D overlayA;
+uniform sampler2D overB;
+uniform sampler2D overC;
+
+varying vec3 vPosition;
+varying vec2 vUV;
+varying vec2 pixelCoord;
+varying vec2 texCoord;
+
+const float pU = 1./255.;
+
+void main(){
+vec4 tile;
+vec3 color = vec3(0.);
+float alpha = 0.;
+
+for(int _d = 0; _d < (1+int(overlayCount)); _d++){
+
+if(_d == 0){
+tile = texture2D(tiles, texCoord);
+};
+if(_d == 1){
+tile = texture2D(overlayA, texCoord);
+};
+if(_d == 2){
+tile = texture2D(overB, texCoord);
+};
+if(_d == 3){
+tile = texture2D(overC, texCoord);
+};
+
+
+vec2 aLoc = (tile.xy/pU)/14.0;
+vec4 aTile = texture2D(animationMap, aLoc);
+
+if(aTile.a > 0.0){
+ float t = (time*aTile.a)/aTile.b;
+ int _t; 
+  
+ /*
+	x:1 -
+	[1][2]
+	x:2 -
+	[1]
+	[2]
+	x:3 - does not work?
+	x:4 -
+	[1][2][3][4]
+	x:5 - 
+	[1][2]
+	[3][4]
+	x:5 -
+	[1][2][3]
+	[4][5][6]
+	x:6,7 - do not work?
+	x:8 - 
+	[1][2]
+	[3][4]
+	[5][6]
+	x:9 -
+	[1][2][3]
+	[4][5][6]
+	[7][8][9]
+ */
+ 
+ //x:1
+ if(aTile.x == pU){
+	_t = int(mod(t, 2.));
+	if(_t == 1){tile.x+=pU;}
+ }
+ //x:2
+  if(aTile.x == pU*2.){
+	_t = int(mod(t, 2.));
+	if(_t == 1){tile.y+=pU;}
+ }
+ //Why does three not work?
+  //x:4
+  if(aTile.x == pU*4.){
+	_t = int(mod(t, 4.));
+	if(_t == 1){tile.x+=pU;}
+	if(_t == 2){tile.x+=pU*2.;}
+	if(_t == 3){tile.x+=pU*3.;}
+ }
+  //x:5
+  if(aTile.x == pU*5.){
+	_t = int(mod(t, 6.));
+	if(_t == 1){tile.x+=pU;}
+	if(_t == 2){tile.x+=pU*2.;}
+	if(_t == 3){tile.y+=pU;}
+	if(_t == 4){tile.x+=pU;tile.y+=pU;}
+	if(_t == 5){tile.x+=pU*2.;tile.y+=pU;}
+ }
+ //6, 7 also do not work?
+ //x:8
+  if(aTile.x == pU*8.){
+	_t = int(mod(t, 6.));
+	if(_t == 1){tile.x+=pU;}
+	if(_t == 2){tile.y+=pU;}
+	if(_t == 3){tile.x+=pU;tile.y+=pU;}
+	if(_t == 4){tile.y+=pU*2.;}
+	if(_t == 5){tile.x+=pU;tile.y+=pU*2.;}
+ }
+  //x:9
+  if(aTile.x == pU*9.){
+	_t = int(mod(t, 9.));
+	if(_t == 1){tile.x+=pU;}
+	if(_t == 2){tile.x+=pU*2.;}
+	if(_t == 3){tile.y+=pU;}
+	if(_t == 4){tile.x+=pU;tile.y+=pU;}
+	if(_t == 5){tile.x+=pU*2.;tile.y+=pU;}
+	if(_t == 6){tile.y+=pU*2.;}
+	if(_t == 7){tile.x+=pU;tile.y+=pU*2.;}
+	if(_t == 8){tile.x+=pU*2.;tile.y+=pU*2.;}
+ }
+ 
+}
+
+
+vec2 spriteOffset = floor(tile.xy * 256.0) * tileSize;
+vec2 spriteCoord = mod(pixelCoord, tileSize);
+
+vec4 tSample = texture2D(sprites, (spriteOffset + spriteCoord) * inverseSpriteTextureSize);
+
+
+	if(_d == 0){
+		color = tSample.xyz;
+		alpha = tSample.a;
+	}else{
+		
+		if(tSample.a > 0.0){
+			color = tSample.xyz;
+			alpha = min(1.0, alpha+tSample.a);
+		}
+
+		//alpha = tSample.a;
+	}
+	
+	if(_d == 0 && ((tile.x == 1.0 && tile.y == 1.0) || tile.a == 0.0) ) { alpha = 0.0; }
+}
+
+if(alpha == 0.0)discard;
+color = color * globalLight;
+
+
+
+gl_FragColor =  vec4(color, alpha);
+}
+`;
+	BABYLON.Effect.ShadersStore["basicVertexShader"] = _vs;
+	BABYLON.Effect.ShadersStore["basicFragmentShader"] = _fs;
+	
+
+	
+	this._tasks--;
+	var self = this;
+		this.scene.registerBeforeRender(()=>{
+			self._update();
+		});	
+	},
+	_startRender : function(){
+		var self = this;	
+		self.engine.runRenderLoop(function () {
+			self.scene.render();
+			self.time+=0.01;
+		});
+		window.addEventListener("resize", function () {
+			self.engine.resize();
+			self._resize();
+		}); 
+	
+	},
+	setAtlas : function(url){
+	var self = this;
+	this._tasks++;
+		this._atlas = new BABYLON.Texture(url, this.scene, true, false, 1, ()=>{
+			self.inverseSpriteTextureSize = new BABYLON.Vector2(1/self._atlas._texture._width, 1/self._atlas._texture._height);
+			console.log("inverseSpriteTextureSize", self.inverseSpriteTextureSize);
+			self._tasks--;
+		});
+	},
+	setAnimations : function(url){
+	var self = this;
+	this._tasks++;
+		this._atlasAnimationSheet = new BABYLON.Texture(url, this.scene, true, false, 1, ()=>{
+			self._tasks--;
+		});
+	},
+	addLayer : function(url, args){
+		this._tasks++;
+		var layer = new TM.LAYER(url, args || {}, this);
+		this.layers.push(layer);
+		return layer;
+	},
+	_resize : function(){
+		console.log('RESIZE!');
+		for(var i=0; i<this.layers.length; i++){
+			var l = this.layers[i];
+			l.viewportSize = new BABYLON.Vector2(this.canvas.width, this.canvas.height);
+			l.viewportScaled = new BABYLON.Vector2(this.canvas.width/(this.tileScale+l.scale), this.canvas.height/(this.tileScale+l.scale));
+			l._build();
+		}
+	},
+	_update : function(){
+		for(var i=0; i<this.layers.length; i++){
+			var l = this.layers[i];
+			l.shader.setVector2('viewOffset', this.offset.multiply(l.scrollSpeed));
+			l.shader.setFloat('time' ,this.time);
+		}
+	}
+};
+TM.LAYER = function(url, args, parent){
+this.parent = parent;
+this.repeat = args.repeat || false;
+this.scale = args.scale || 0;
+this.scrollSpeed = args.scrollSpeed || new BABYLON.Vector2(1.0,1.0);
+this.viewportSize = new BABYLON.Vector2(this.parent.canvas.width, this.parent.canvas.height);
+this.viewportScaled = new BABYLON.Vector2(this.parent.canvas.width/(this.parent.tileScale+this.scale), this.parent.canvas.height/(this.parent.tileScale+this.scale));
+this._atlasSet = false;
+this._animationsSet = false;
+this._tilesSet = false;
+this._overlays = {};
+this._overlayCount = 0;
+
+var self = this;
+	this._tiles = new BABYLON.Texture(url, this.scene, true, false, 1, ()=>{			
+			self.inverseTextureSize = new BABYLON.Vector2(1/self._tiles._texture._width, 1/self._tiles._texture._height);
+			console.log("inverseTextureSize", self.inverseTextureSize);
+			self._setShader();
+			self.parent._tasks--;
+	});	
+	
+	if(!this.repeat){
+		this._tiles.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+		this._tiles.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+	}
+};
+TM.LAYER.prototype = {
+	_build : function(){
+		this._setShader();
+		this._createPlane();
+	},
+	_createPlane : function(){
+		if(this.plane)this.plane.dispose();
+		var scene = this.parent.scene;
+		var engine = this.parent.engine;
+		var c = scene.activeCamera;
+		var fov = c.fov;
+		var aspectRatio = engine.getAspectRatio(c);
+		var d = c.position.length();
+		var y = 2 * d * Math.tan(fov / 2);
+		var x = y * aspectRatio;		
+		this.plane = BABYLON.MeshBuilder.CreatePlane("plane", {width: x, height:y}, scene);
+		this.plane.material = this.shader;
+	},
+	_setShader : function(){		
+		if(!this.shader){
+		this.shader = new BABYLON.ShaderMaterial("basicShader", this.parent.scene, {
+			vertex: "basic",
+			fragment: "basic",
+			},{
+			attributes: ["position", "normal", "uv"],
+			uniforms: ["world",
+			"worldView", 
+			"worldViewProjection",
+			"view", "viewOffset",
+			"viewportSize",
+			"inverseTileTextureSize",
+			"inverseSpriteTextureSize","layerHeight",
+			"tileSize", "time", "projection",
+			"globalLight", "fps"]
+		});
+		}
+		
+		this.shader.setVector2('viewportSize', this.viewportScaled);
+		this.shader.setVector2('inverseTileTextureSize', this.inverseTextureSize);
+		this.shader.setVector2('inverseSpriteTextureSize', this.parent.inverseSpriteTextureSize);
+		this.shader.setVector3('globalLight', new BABYLON.Vector3(1.0, 1.0, 1.0));
+		this.shader.setFloat('tileSize', this.parent.tileSize);
+		this.shader.setFloat('overlayCount', 0);
+		this.shader.setFloat('layerHeight', this._tiles._texture._baseHeight);
+		this.shader.setFloat('fps', 60);		
+		
+		if(!this._atlasSet){
+			this.shader.setTexture("sprites", this.parent._atlas);
+			this._atlasSet = true;
+		}
+		if(!this._animationsSet){
+			this.shader.setTexture('animationMap', this.parent._atlasAnimationSheet);
+			this._animationsSet = true;
+		}
+		if(!this._tilesSet){
+			this.shader.setTexture("tiles", this._tiles);
+			this._tilesSet = true;
+		}
+		if(this._overlays['A']){
+			this.shader.setTexture('overlayA', this._overlays['A']);
+			this.shader.setFloat('overlayCount', this._overlayCount);
+			console.log('MAKE OVERLAY!');	
+		}
+		
+		
+	},
+	addOverlay : function(overlay, url){
+	//this.parent._tasks++;	
+	var self = this;
+	console.log("SELF",self);
+		if(this._atlasSet && this._animationsSet && this._tilesSet){	
+		function set(overlay){			
+			self._overlayCount++;			
+			self.parent._tasks--;
+			self._setShader();
+			}
+		
+			this._overlays[overlay] = new BABYLON.Texture(url, this.parent.scene, true, false, 1, ()=>{	
+				set(overlay);				
+			});
+			
+			if(!this.repeat){
+				this._overlays[overlay].wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+				this._overlays[overlay].wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+			}		
+		}
+		else{
+			console.log('OVERLAY WAIT!');
+			setTimeout(function(){self.addOverlay(overlay, url);},1000/30);
+		}
+	}
+};
+document.addEventListener("DOMContentLoaded", () => {
+	tm = new TM('renderCanvas', {tileScale:2, tileSize:16});
+	tm.setAtlas('./imgs/Legends-16-bit.png');
+	tm.setAnimations('./imgs/Legends-16-bit-aniMap.png');	
+	var l0 = tm.addLayer('./imgs/water-background.png', {repeat:true});
+	var l1 = tm.addLayer('./imgs/island_layer.png', {repeat:false});
+	l1.addOverlay('A', './imgs/OverLay_A.png');
+},false);
+</script>
+
+    
+	
+	
+</body>
+</html>
