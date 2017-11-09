@@ -277,7 +277,7 @@ vec4 tSample = texture2D(sprites, (spriteOffset + spriteCoord) * inverseSpriteTe
 		color = tSample.xyz;
 		alpha = tSample.a;
 	}else{
-		
+		if(((tile.x == 1.0 && tile.y == 1.0) || tile.a == 0.0) ) { continue; }
 		if(tSample.a > 0.0){
 			color = tSample.xyz;
 			alpha = min(1.0, alpha+tSample.a);
@@ -291,8 +291,6 @@ vec4 tSample = texture2D(sprites, (spriteOffset + spriteCoord) * inverseSpriteTe
 
 if(alpha == 0.0)discard;
 color = color * globalLight;
-
-
 
 gl_FragColor =  vec4(color, alpha);
 }
@@ -418,7 +416,9 @@ TM.LAYER.prototype = {
 			"inverseTileTextureSize",
 			"inverseSpriteTextureSize","layerHeight",
 			"tileSize", "time", "projection",
-			"globalLight", "fps"]
+			"globalLight", "fps",
+			],
+			samplers:["sprites", "tiles", "animationMap", "overlayA"]
 		});
 		}
 		
