@@ -1,0 +1,133 @@
+html, body{
+overflow: hidden;
+width   : 100%;
+height  : 100%;
+min-height : 100%;
+margin  : 0;
+padding : 0;
+font-size:16px;
+-moz-box-sizing: border-box;
+-webkit-box-sizing: border-box;
+box-sizing: border-box;
+}
+
+body *{
+-moz-box-sizing: border-box;
+-webkit-box-sizing: border-box;
+box-sizing: border-box;
+}
+
+.full-wrap{
+width   : 100%;
+height  : 100%;
+top:0;left:0;
+position:absolute;
+display:block;
+}
+
+.hidden{
+	display:none;
+}
+
+#navigator{
+	display:block;
+	width:320px;
+	right:-1px;
+	top:-1px;
+	bottom:-1px;
+	border:1px solid darkgray;
+	padding:0.2em;
+	position:absolute;
+	background:rgba(80,80,80,0.25);
+}
+
+.list{
+	background:rgba(180,180,180,0.25);
+	border:1px solid darkgray;
+	padding:0.2em;
+	display:block;
+}
+
+#scene-list{
+	height:calc(50% - 0.4em);
+}
+
+#tools{
+	height:calc(50% - 0.4em);
+	top:50%;
+}
+
+#panes{
+	pointer-events: none;
+}
+#panes *{
+	pointer-events: initial;
+}
+
+.pane{
+	position:absolute;
+	width:auto;height:auto;
+	padding:0.5em;
+	border:1px solid gray;
+	left:50%;top:50%;
+	transform:translate(-50%, -50%);
+	display:none;
+	background:rgba(80,80,80,0.25);
+}
+
+.pane.active{
+	display:block;
+}
+.item.stage.active{
+	border:1px solid lightblue;
+}
+
+.button{
+	display:block;
+	width:auto;
+	background:rgba(80,80,80,0.25);
+	padding:0.5em 0.32em;
+	margin:0.3em;
+	border:1px solid darkgray;
+	text-align:center;
+	text-decoration:none;
+	
+}
+
+.button:hover{
+	opacity:0.85;
+}
+
+
+.item{
+	display:block;
+	position:relative;
+	margin:0.1em;
+	padding:0.15em;
+	border:1px solid gray;
+	line-height: 1.4em;
+}
+
+.small{
+	font-size:0.65em;
+}
+.inline{display:inline}
+
+#renderCanvas{
+width : 100%;
+height : 100%;
+touch-action: none;
+position:absolute;
+display:block;
+}
+
+
+#screen-lock{
+	left:0;
+	top:0;
+	right:0;
+	bottom:0;
+	background:rgba(80,80,80,0.5);
+	z-index:10000001;
+}
+
