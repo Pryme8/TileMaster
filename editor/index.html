@@ -20,10 +20,11 @@
 		</div>
 	
 	<div class='list' id='tools'>
-		<a href='#' class='button' act='change-pane' t='create-stage'>Create Stage</a><BR>		
+		<a href='#' class='button' act='change-pane' t='create-stage'>Create Stage</a>
 		<a href='#' class='button inline' act='change-pane' t='add-sheet'>Add Sheet</a>
 		<a href='#' class='button inline' act='change-pane' t='manage-sheets'>Manage Sheets</a>
-				
+		<hr>
+		<a href='#' class='button' act='export-project'>Export Project</a><BR>	
 	</div>
 	
 	</div>
@@ -35,6 +36,16 @@
 	<div class='pane active' id='start-up'>
 		<a href='#' class='button' act='change-pane' t='new-project'>Create New Project</a>
 		<a href='#' class='button' act='change-pane' t='load-project'>Load Project</a>
+	</div>
+	
+	<div class='pane' id='load-project'>
+		<div class='input'>
+		<span>Project:</span>
+		<input id='loaded-project' type='file'></input>
+		</div>
+	
+		<a href='#' class='button' act='import-project'>Confirm</a>
+		<a href='#' class='button' act='change-pane' t='start-up'>Cancel</a>
 	</div>
 	
 	<div class='pane' id='new-project'>
@@ -64,6 +75,14 @@
 		<a href='#' class='button' act='add-sheet'>Confirm</a>
 		<a href='#' class='button' act='close-pane'>Cancel</a>
 	</div>
+	
+	<div class='pane' id='manage-sheets'>
+		<div class='list' id='sheet-list'>
+		
+		</div>
+		<a href='#' class='button' act='close-pane'>Done</a>
+	</div>
+	
 	
 </div>
 
