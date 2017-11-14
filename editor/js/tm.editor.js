@@ -9,9 +9,7 @@ return this;
 TM.EDITOR.prototype = {
 	_init : function(){
 		this._tasks = 0;
-		this._screenlock = document.getElementById('screen-lock');
-
-	
+		this._screenlock = document.getElementById('screen-lock');	
 		this.canvas = document.getElementById('renderCanvas');
 		this._startScene();
 		this._bindings();
@@ -71,6 +69,7 @@ TM.EDITOR.ACTS = {
 	'close-pane': function(e, parent){
 		(document.body.querySelector('.pane.active')).classList.remove('active');
 	},
+	
 	/*END PANE CONTROLS*/
 	
 	'create-new-project' : function(e, parent){
@@ -119,6 +118,40 @@ TM.EDITOR.ACTS = {
 		
 	},
 	
+	/*'manage-sheets' : function(e, parent){		
+		var pane = document.body.querySelector('.pane.active');
+		if(pane){pane.classList.remove('active');}
+		pane = document.body.querySelector('[id="manage-sheets"].pane');
+		var list = pane.querySelector('[id="sheet-list"]');
+		list.innerHTML = '';
+		
+		for(var i =0; i<parent._project.assets.sheets.length; i++){
+			var sheet = parent._project.assets.sheets[i];
+			var item = document.createElement('div');
+			item.setAttribute('id', i);
+			
+			var sctx = sheet._context;
+			var iDat = sctx.getImageData(0, 0, sctx.width, sctx.height);
+			
+			var cvas = document.createElement('canvas');
+			cvas.width = sctx.width;
+			cvas.height = sctx.height;
+			
+			var tctx = cvas.getContext('2d');
+			tctx.putImageData(iDat, 0, 0);
+
+			item.appendChild(cvas);			
+			list.appendChild(item);
+			
+			
+		}
+		
+		
+		
+		pane.classList.add('active');
+		
+	},*/	
+	
 	/*SHEET LOADING*/
 	'add-sheet' : function(e, parent){
 		var pane = document.body.querySelector('[id="add-sheet"].pane');
@@ -144,11 +177,53 @@ TM.EDITOR.ACTS = {
 		var texture = new BABYLON.Texture(img.src, parent.scene, true, false, 1,
 		()=>{
 			texture.inverseSize = new BABYLON.Vector2(1/texture._texture._width, 1/texture._texture._height);
+			var canvas = document.createElement('canvas');
+			var context = canvas.getContext('2d');			
+			canvas.width = img.width;
+			canvas.height = img.height;
+			context.drawImage(img, 0, 0 );
+			var data = context.getImageData(0, 0, img.width, img.height);
+			texture.idat = data;			
 			parent._project.assets.sheets.push(texture);
 			parent._tasks--;			
 		});	
 		
 	},
+	'parse-sheet' : function(data, parent){		
+		var texture = new BABYLON.DynamicTexture('parsed-sheet', {width:data.width || 1, height:data.height || 1}, parent.scene, false, 1);
+		texture.inverseSize = data.inverseSize;
+		
+		var ctx = texture._context;
+		var iDat = ctx.createImageData(data.width, data.height);
+		var d = iDat.data;
+		
+		for (var i = 0; i < d.length; i += 4) {
+			d[i]     = data.data[i];    
+			d[i + 1] = data.data[i + 1]; 
+			d[i + 2] = data.data[i + 2]; 
+			d[i + 3] = data.data[i + 3]; 
+		}
+		
+		ctx.putImageData(iDat, 0, 0);
+		texture.update(false);
+		
+		pane = document.body.querySelector('[id="manage-sheets"].pane');
+		var list = pane.querySelector('[id="sheet-list"]');
+		var item = document.createElement('div');
+			item.setAttribute('id', i);			
+			
+			var cvas = document.createElement('canvas');
+			cvas.width = data.width;
+			cvas.height = data.height;
+			
+			var ctx = cvas.getContext('2d');
+			ctx.putImageData(iDat, 0, 0);
+
+			item.appendChild(cvas);			
+			list.appendChild(item);
+		
+		parent._project.assets.sheets.push(texture);	
+	},	
 	/*SHEET LOADING END*/
 	
 	'screen-lock' : function(parent){
@@ -158,6 +233,108 @@ TM.EDITOR.ACTS = {
 		}else{
 			parent._screenlock.style.display = 'none';
 		}
+	},
+	
+	/*EXPORT STUFF*/
+	'export-project' : function(e, parent){
+		parent._tasks++;
+		TM.EDITOR.ACTS['screen-lock'](parent);
+		var project = parent._project;
+		
+		var p = {
+			name: project.name,
+			assets : {
+				sheets : [],
+			},
+			stages : [],
+			activeStage : project.activeStage
+		};
+		
+		for(var i = 0; i<project.stages.length; i++){
+			p.stages.push(project.stages[i]._serialize());
+		}
+		
+		for(var i = 0; i<project.assets.sheets.length; i++){
+			//Convert to Image-Data
+			var sheet = project.assets.sheets[i];
+			var dat = {
+				data : [],
+				inverseSize : {x:sheet.inverseSize.x, y: sheet.inverseSize.y},
+				width : sheet.idat.width,
+				height : sheet.idat.height
+			}
+			
+			for(var j=0; j<sheet.idat.data.length; j++){
+				dat.data.push(sheet.idat.data[j]);
+			}
+
+			
+			p.assets.sheets.push(dat);
+		}
+		
+		
+		p = JSON.stringify(p);
+		
+		var a = document.createElement('a');
+		
+			var file = new Blob([p], {type: 'text/plain'});
+			a.download = project.name+'.tmf';
+			a.href = URL.createObjectURL(file);			
+			a.click();
+		parent._tasks--;
+	},
+	
+	/*IMPORT STUFF*/
+	'import-project' : function(e, parent){
+		parent._tasks++;
+		TM.EDITOR.ACTS['screen-lock'](parent);
+		var pane = document.body.querySelector('[id="load-project"].pane');
+		var file = document.body.querySelector('input[id="loaded-project"]').files[0];
+		console.log(file);
+		var fileName = file.name;
+		var fileType = fileName.split('.');
+		fileType = fileType[fileType.length-1];
+		
+		if(fileType == 'tmf'){
+		var reader = new FileReader();
+			reader.onload = function(){
+			var text = reader.result;
+			var file = JSON.parse(text);
+			
+			var project = new TM.PROJECT();
+			
+			project.name = file.name;			
+			parent._project = project;
+			
+			var stages = file.stages;
+			for(var i = 0; i<stages.length; i++){
+				var stage = new TM.STAGE(parent);
+				stage.name = stages[i].name;
+				parent._project.stages.push(stage);
+			}			
+			project.activeStage = file.activeStage;
+			console.log(file.assets);
+			var sheets = file.assets.sheets;
+			for(var i = 0; i<sheets.length; i++){
+				var dat = sheets[i];
+				TM.EDITOR.ACTS['parse-sheet'](dat, parent);
+			}
+			
+			
+			var pane = document.body.querySelector('.pane.active');
+			if(pane){pane.classList.remove('active');}
+			TM.EDITOR.ACTS['refreshUI'](e, parent);
+			(document.body.querySelector('.full-wrap.hidden')).classList.remove('hidden');
+			
+			
+			parent._tasks--;
+        };
+        reader.readAsText(file);
+		}else{
+			parent._tasks--;
+			return;
+		}
+		
 	},
 	
 };
@@ -184,11 +361,22 @@ TM.STAGE = function(parent){
 };
 
 TM.STAGE.prototype = {
-	
+	_serialize : function(){
+		s = {
+			name : this.name,
+			planes : [],
+			actors : []			
+		};
+		
+		
+		return s;
+		
+	}
 };
 
 TM.PLANE = function(parent){
 	this._parent = parent;
+	this.layers = [];
 	this._buildMesh();
 	
 };
@@ -205,8 +393,12 @@ TM.PLANE.prototype = {
 		var y = 2 * d * Math.tan(fov / 2);
 		var x = y * aspectRatio;		
 		this.mesh = BABYLON.MeshBuilder.CreatePlane("output-plane", {width: x, height:y}, scene);
-	}
+	},
 	
+	
+	_serialize : function(){
+		
+	}	
 };
 
 
