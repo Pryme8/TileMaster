@@ -36,11 +36,13 @@ TM.EDITOR.prototype = {
 		self.engine.runRenderLoop(function () {
 			self.scene.render();
 		});
-		self.engine.resize();
 		window.addEventListener("resize", function () {
 			self.engine.resize();
-			//self._resize();
+			self._refresh();
 		}); 
+		
+		self.engine.resize();
+		self._refresh();
 	
 	},
 	_bindings : function(){
@@ -55,7 +57,19 @@ TM.EDITOR.prototype = {
 				}
 			
 		},false);
-	}
+	},
+	_refresh : function(){
+		if(!this._project){return;}
+		for(var i =0; i<this._project.stages.length; i++){
+			var stage = this._project.stages[i];
+			if(i != this._project.activeStage){continue;}
+			for(var j =0; j<stage.planes.length; j++){
+				var plane = stage.planes[j];
+				plane._resize();			
+			}
+		}
+		
+	},
 };
 
 
@@ -68,10 +82,8 @@ TM.EDITOR.ACTS = {
 	},
 	'close-pane': function(e, parent){
 		(document.body.querySelector('.pane.active')).classList.remove('active');
-	},
-	
-	/*END PANE CONTROLS*/
-	
+	},	
+	/*END PANE CONTROLS*/	
 	'create-new-project' : function(e, parent){
 		var pane = document.body.querySelector('.pane.active');
 		var nameIn = pane.querySelector('[id="project-name"]');
@@ -117,41 +129,6 @@ TM.EDITOR.ACTS = {
 			}
 		
 	},
-	
-	/*'manage-sheets' : function(e, parent){		
-		var pane = document.body.querySelector('.pane.active');
-		if(pane){pane.classList.remove('active');}
-		pane = document.body.querySelector('[id="manage-sheets"].pane');
-		var list = pane.querySelector('[id="sheet-list"]');
-		list.innerHTML = '';
-		
-		for(var i =0; i<parent._project.assets.sheets.length; i++){
-			var sheet = parent._project.assets.sheets[i];
-			var item = document.createElement('div');
-			item.setAttribute('id', i);
-			
-			var sctx = sheet._context;
-			var iDat = sctx.getImageData(0, 0, sctx.width, sctx.height);
-			
-			var cvas = document.createElement('canvas');
-			cvas.width = sctx.width;
-			cvas.height = sctx.height;
-			
-			var tctx = cvas.getContext('2d');
-			tctx.putImageData(iDat, 0, 0);
-
-			item.appendChild(cvas);			
-			list.appendChild(item);
-			
-			
-		}
-		
-		
-		
-		pane.classList.add('active');
-		
-	},*/	
-	
 	/*SHEET LOADING*/
 	'add-sheet' : function(e, parent){
 		var pane = document.body.querySelector('[id="add-sheet"].pane');
@@ -183,7 +160,9 @@ TM.EDITOR.ACTS = {
 			canvas.height = img.height;
 			context.drawImage(img, 0, 0 );
 			var data = context.getImageData(0, 0, img.width, img.height);
-			texture.idat = data;			
+			texture.idat = data;
+			var id = parent._project.assets.sheets.length;
+				TM.EDITOR.ACTS['add-sheet-to-management-list']({iDat: data, width: data.width, height:data.height, i:id}, parent);		
 			parent._project.assets.sheets.push(texture);
 			parent._tasks--;			
 		});	
@@ -206,25 +185,40 @@ TM.EDITOR.ACTS = {
 		
 		ctx.putImageData(iDat, 0, 0);
 		texture.update(false);
+				
+		TM.EDITOR.ACTS['add-sheet-to-management-list']({iDat: iDat, width: data.width, height:data.height, i:data.i}, parent);		
+				
+		parent._project.assets.sheets.push(texture);	
+	},
+	'add-sheet-to-management-list' : function(data, parent){
 		
 		pane = document.body.querySelector('[id="manage-sheets"].pane');
 		var list = pane.querySelector('[id="sheet-list"]');
 		var item = document.createElement('div');
-			item.setAttribute('id', i);			
-			
+		item.setAttribute('id', data.i);
+						
 			var cvas = document.createElement('canvas');
 			cvas.width = data.width;
 			cvas.height = data.height;
 			
 			var ctx = cvas.getContext('2d');
-			ctx.putImageData(iDat, 0, 0);
+			ctx.putImageData(data.iDat, 0, 0);
 
 			item.appendChild(cvas);			
 			list.appendChild(item);
 		
-		parent._project.assets.sheets.push(texture);	
 	},	
 	/*SHEET LOADING END*/
+	
+	/* STAGE MANAGMENT */
+	'add-plane' : function(e, parent){
+		var sID = parseInt(e.target.getAttribute('t'));
+		var stage = parent._project.stages[sID];
+		stage['add-plane']();
+		parent._refresh();
+		
+	},	
+	/* END STAGE MANAGMENT */
 	
 	'screen-lock' : function(parent){
 		if(parent._tasks>0){
@@ -317,6 +311,7 @@ TM.EDITOR.ACTS = {
 			var sheets = file.assets.sheets;
 			for(var i = 0; i<sheets.length; i++){
 				var dat = sheets[i];
+				dat.i = i;
 				TM.EDITOR.ACTS['parse-sheet'](dat, parent);
 			}
 			
@@ -325,6 +320,7 @@ TM.EDITOR.ACTS = {
 			if(pane){pane.classList.remove('active');}
 			TM.EDITOR.ACTS['refreshUI'](e, parent);
 			(document.body.querySelector('.full-wrap.hidden')).classList.remove('hidden');
+			
 			
 			
 			parent._tasks--;
@@ -357,45 +353,64 @@ TM.STAGE = function(parent){
 	this.planes = [];
 	this.actors = [];
 	
+	this.viewOffset = new BABYLON.Vector2(0,0);
+	this.viewZoom = 1.0;
+	
+	
 	return this;
 };
 
 TM.STAGE.prototype = {
+	'add-plane' : function(){
+		var plane = new TM.PLANE(this);
+		this.planes.push(plane);
+	},
 	_serialize : function(){
 		s = {
 			name : this.name,
 			planes : [],
 			actors : []			
-		};
-		
+		};		
 		
 		return s;
-		
-	}
+	}	
 };
 
 TM.PLANE = function(parent){
 	this._parent = parent;
+	this._core = parent._parent;
+	console.log(this._core);
+	this.name = 'New Plane';
 	this.layers = [];
+	
+	this.planeOffset = new BABYLON.Vector2(0,0);
+	this.planeScale = 1.0;
+	this.planeMoveScale = new BABYLON.Vector2(1.0,1.0);
+	
 	this._buildMesh();
 	
 };
 
 TM.PLANE.prototype = {
 	_buildMesh : function(){
-		if(this.mesh)this.mesh.dispose();
-		var scene = this.parent.scene;
-		var engine = this.parent.engine;
+		if(this.mesh){this.mesh.dispose();}
+		var scene = this._core.scene;
+		var engine = this._core.engine;
 		var c = scene.activeCamera;
 		var fov = c.fov;
+		console.log('fov', fov);
 		var aspectRatio = engine.getAspectRatio(c);
+		console.log('aspectRatio', aspectRatio);
 		var d = c.position.length();
 		var y = 2 * d * Math.tan(fov / 2);
-		var x = y * aspectRatio;		
-		this.mesh = BABYLON.MeshBuilder.CreatePlane("output-plane", {width: x, height:y}, scene);
+		var x = y * aspectRatio;
+		console.log(x,y);		
+		this.mesh = BABYLON.MeshBuilder.CreatePlane("output-plane", {width: x, height:y}, this._core.scene);
 	},
-	
-	
+	_resize : function(){
+		console.log("resize!");
+		this._buildMesh();
+	},	
 	_serialize : function(){
 		
 	}	
