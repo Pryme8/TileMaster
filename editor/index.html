@@ -83,6 +83,61 @@
 		<a href='#' class='button' act='close-pane'>Done</a>
 	</div>
 	
+	<div class='pane' id='stage-settings'>	
+		<input id='stage-id' type='number' class='hidden'></input>
+	
+		<div class='input'>
+		<span>Stage Name:</span>
+		<input id='stage-name' type='text' placeholder='Name'></input>
+		</div>
+		
+		<div class='input'>
+		<span>Stage Width:</span>
+		<input id='stage-width' type='number' step='1' min='1' max='4096' ></input>
+		</div>
+		
+		<div class='input'>
+		<span>Stage Height:</span>
+		<input id='stage-height' type='number' step='1' min='1' max='4096' ></input>
+		</div>
+		<a href='#' class='button' act='stage-settings-update'>Confirm</a>
+		<a href='#' class='button' act='close-pane'>Cancel</a>
+	</div>
+	
+	<div class='pane' id='plane-settings'>
+		<input id='stage-id' type='number' class='hidden'></input>
+		<input id='plane-id' type='number' class='hidden'></input>
+	
+		<div class='input'>
+		<span>Plane Name:</span>
+		<input id='plane-name' type='text' placeholder='Name'></input>
+		</div>
+		
+		<div class='input'>
+		<span>Plane Offset X:</span>
+		<input id='plane-offset-x' type='number'></input>
+		</div>
+		<div class='input'>
+		<span>Plane Offset Y:</span>
+		<input id='plane-offset-y' type='number'></input>
+		</div>
+		<div class='input'>
+		<span>Plane Scale:</span>
+		<input id='plane-scale' type='number'></input>
+		</div>
+		<div class='input'>
+		<span>Plane Move Scale X:</span>
+		<input id='plane-move-scale-x' type='number'></input>
+		</div>
+		<div class='input'>
+		<span>Plane Move Scale Y:</span>
+		<input id='plane-move-scale-y' type='number'></input>
+		</div>
+
+		<a href='#' class='button' act='plane-settings-update'>Confirm</a>
+		<a href='#' class='button' act='close-pane'>Cancel</a>
+	</div>
+	
 	
 </div>
 

@@ -47,10 +47,14 @@ uniform float time;
 uniform float fps;
 uniform vec2 viewOffset;
 uniform vec2 viewportSize;
+uniform vec2 inverseStageSize;
+uniform float spriteSize;
 
 varying vec3 vPosition;
 varying vec2 vUV;
 varying vec2 pixelCoord;
+varying vec2 texCoord;
+
 
 void main() {
     vec4 p = vec4( position, 1. );
@@ -59,6 +63,8 @@ void main() {
 	vUV = uv;
 	vUV.y = 1.0 - vUV.y;
 	pixelCoord = (vUV * viewportSize) + viewOffset;
+	texCoord = pixelCoord * inverseStageSize * (1.0/spriteSize);
+	
 	
 }`;
 var _fs =
@@ -68,14 +74,18 @@ uniform float time;
 uniform float fps;
 uniform vec2 viewOffset;
 uniform vec2 viewportSize;
+uniform float spriteSize;
 
 varying vec3 vPosition;
 varying vec2 vUV;
 varying vec2 pixelCoord;
+varying vec2 texCoord;
 
 
 void main(){
-vec3 color = vec3(1.0,1.0,vUV.y);
+vec2 spriteCoord = mod(pixelCoord, spriteSize);
+vec3 color = vec3(spriteCoord.x,1.0,spriteCoord.y);
+if((texCoord.x > 1.0  || texCoord.x < 0.0 || texCoord.y > 1.0 || texCoord.y < 0.0)){color = vec3(0.0); }
 float alpha = 1.0;
 
 gl_FragColor =  vec4(color, alpha);
@@ -112,7 +122,7 @@ gl_FragColor =  vec4(color, alpha);
 			
 		},false);
 	},
-	_refresh : function(){
+	_refresh : function(refreshAll){
 		if(!this._project){return;}
 		this.viewportSize = new BABYLON.Vector2(this.canvas.width, this.canvas.height);
 		for(var i =0; i<this._project.stages.length; i++){
@@ -120,7 +130,8 @@ gl_FragColor =  vec4(color, alpha);
 			if(i != this._project.activeStage){continue;}
 			for(var j =0; j<stage.planes.length; j++){
 				var plane = stage.planes[j];
-				plane._resize();			
+				plane._resize();
+				if(refreshAll){plane._setAll();}
 			}
 		}
 		
@@ -178,7 +189,11 @@ TM.EDITOR.ACTS = {
 				item.setAttribute('id', i);
 				item.classList.add('item', 'stage');
 				if(parent._project.activeStage == i){item.classList.add('active');}
-				var ihs = stages[i].name+'<hr>';
+				var ihs = stages[i].name;
+				ihs+='<div class="settings-menu">';
+					ihs+= "<a href='#' class='button small inline' act='stage-settings' t='"+i+"'>Settings</a>";
+				ihs+='</div>';
+				ihs+='<hr>';
 				
 					for(var j=0; j<stages[i].planes.length; j++){
 						var p = stages[i].planes[j];
@@ -188,6 +203,7 @@ TM.EDITOR.ACTS = {
 						p.name+"<br>"+
 						"<a href='#' class='button small inline' act='make-plane-active' p='"+i+"' t='"+j+"'>Make Active</a>"+
 						"<a href='#' class='button small inline' act='delete-plane' p='"+i+"' t='"+j+"'>Delete Plane</a>"+
+						"<a href='#' class='button small inline' act='plane-settings' p='"+i+"' t='"+j+"'>Settings</a>"+
 						'</div>';						
 					}				
 				ihs += "<hr>";
@@ -225,6 +241,7 @@ TM.EDITOR.ACTS = {
 		var texture = new BABYLON.Texture(img.src, parent.scene, true, false, 1,
 		()=>{
 			texture.inverseSize = new BABYLON.Vector2(1/texture._texture._width, 1/texture._texture._height);
+			texture.tileSize = 32.0;
 			var canvas = document.createElement('canvas');
 			var context = canvas.getContext('2d');			
 			canvas.width = img.width;
@@ -242,7 +259,7 @@ TM.EDITOR.ACTS = {
 	'parse-sheet' : function(data, parent){		
 		var texture = new BABYLON.DynamicTexture('parsed-sheet', {width:data.width || 1, height:data.height || 1}, parent.scene, false, 1);
 		texture.inverseSize = data.inverseSize;
-		
+		texture.tileSize = data.tileSize;
 		var ctx = texture._context;
 		var iDat = ctx.createImageData(data.width, data.height);
 		var d = iDat.data;
@@ -304,7 +321,81 @@ TM.EDITOR.ACTS = {
 		stage['add-plane']();
 		TM.EDITOR.ACTS['refreshUI'](e, parent);
 		parent._refresh();		
-	},	
+	},
+	'stage-settings' : function(e, parent){
+		var sID = parseInt(e.target.getAttribute('t'));
+		var pane = document.body.querySelector('.pane.active');
+		if(pane){pane.classList.remove('active');}
+		pane = document.body.querySelector('[id="stage-settings"].pane');
+		pane.querySelector('[id="stage-id"]').value = sID;
+		
+		var stage = parent._project.stages[sID];
+		pane.querySelector('[id="stage-name"]').value = stage.name; 
+		pane.querySelector('[id="stage-width"]').value = stage.stageSize.x; 
+		pane.querySelector('[id="stage-height"]').value = stage.stageSize.y;
+			
+		pane.classList.add('active');
+		
+	},
+	'stage-settings-update' : function(e, parent){
+		var pane = document.body.querySelector('[id="stage-settings"].pane');
+		pane.classList.remove('active');
+		
+		var sID = parseInt(pane.querySelector('[id="stage-id"]').value);		
+		var stage = parent._project.stages[sID];
+		stage.name = pane.querySelector('[id="stage-name"]').value;
+		stage.stageSize.x =  parseFloat(pane.querySelector('[id="stage-width"]').value);  
+		stage.stageSize.y =  parseFloat(pane.querySelector('[id="stage-height"]').value);
+		
+		TM.EDITOR.ACTS['refreshUI'](e, parent);
+		parent._refresh(true);
+		
+		
+	},
+	'plane-settings' : function(e, parent){
+		var sID = parseInt(e.target.getAttribute('p'));
+		var pID = parseInt(e.target.getAttribute('t'));
+		var pane = document.body.querySelector('.pane.active');
+		if(pane){pane.classList.remove('active');}
+		pane = document.body.querySelector('[id="plane-settings"].pane');
+		pane.querySelector('[id="stage-id"]').value = sID;
+		pane.querySelector('[id="plane-id"]').value = pID;
+		
+		var plane = parent._project.stages[sID].planes[pID];
+
+			console.log(plane);	
+		
+		pane.querySelector('[id="plane-name"]').value = plane.name; 
+		pane.querySelector('[id="plane-offset-x"]').value = plane.planeOffset.x; 
+		pane.querySelector('[id="plane-offset-y"]').value = plane.planeOffset.y; 
+		pane.querySelector('[id="plane-scale"]').value = plane.planeScale;
+		pane.querySelector('[id="plane-move-scale-x"]').value = plane.planeMoveScale.x;
+		pane.querySelector('[id="plane-move-scale-y"]').value = plane.planeMoveScale.y;
+		
+		pane.classList.add('active');
+		
+	},
+	'plane-settings-update' : function(e, parent){		
+		pane = document.body.querySelector('[id="plane-settings"].pane');
+		pane.classList.remove('active');
+		var sID = pane.querySelector('[id="stage-id"]').value;
+		var pID = pane.querySelector('[id="plane-id"]').value;
+		
+		var plane = parent._project.stages[sID].planes[pID];
+	
+		
+		plane.name = pane.querySelector('[id="plane-name"]').value; 
+		plane.planeOffset.x = parseFloat(pane.querySelector('[id="plane-offset-x"]').value); 
+		plane.planeOffset.y = parseFloat(pane.querySelector('[id="plane-offset-y"]').value); 
+		plane.planeScale = parseFloat(pane.querySelector('[id="plane-scale"]').value);
+		plane.planeMoveScale.x =  parseFloat(pane.querySelector('[id="plane-move-scale-x"]').value);
+		plane.planeMoveScale.y =  parseFloat(pane.querySelector('[id="plane-move-scale-y"]').value);
+		
+		
+		TM.EDITOR.ACTS['refreshUI'](e, parent);
+		parent._refresh(true);		
+		
+	},
 	/* END STAGE MANAGMENT */
 	
 	'screen-lock' : function(parent){
@@ -341,6 +432,7 @@ TM.EDITOR.ACTS = {
 			var dat = {
 				data : [],
 				inverseSize : {x:sheet.inverseSize.x, y: sheet.inverseSize.y},
+				tileSize : sheet.tileSize,
 				width : sheet.idat.width,
 				height : sheet.idat.height
 			}
@@ -440,8 +532,11 @@ TM.STAGE = function(parent){
 	this.actors = [];
 	
 	this.viewOffset = new BABYLON.Vector2(0,0);
-	this.spriteScale = 2.0;
+	this.spriteScale = 1.0;
 	this.viewZoom = 1.0;
+	this.spirteSize = 32.0;
+	
+	this.stageSize = new BABYLON.Vector2(10,10);
 	
 	
 	return this;
@@ -504,28 +599,35 @@ TM.PLANE.prototype = {
 			"worldViewProjection",
 			"view", "viewOffset",
 			"viewportSize",
-			"time"]
+			"time", "spriteSize"]
 			});
-			
-		
 	},
 	_setAll : function(){
 		this._setViewportSize();
 		this._setViewOffset();
+		this._setInverseStageSize();
+		this._setSpriteSize();
 	},
 	_setViewportSize : function(){
-		this.viewportScaled = new BABYLON.Vector2(this._core.viewportSize.x/(this._parent.spriteScale+this.planeScale), this._core.viewportSize.y/(this._parent.spriteScale+this.planeScale));
-		console.log(this.viewportScaled);
+		this.viewportScaled = new BABYLON.Vector2(this._core.viewportSize.x/((this._parent.viewZoom+this._parent.spriteScale+this.planeScale)/3), this._core.viewportSize.y/((this._parent.viewZoom+this._parent.spriteScale+this.planeScale)/3));
 		this.shader.setVector2('viewportSize', this.viewportScaled);
 	},
 	_setViewOffset : function(){
 		this.shader.setVector2('viewOffset', this._parent.viewOffset);
 	},
+	_setSpriteSize : function(){
+		this.shader.setFloat('spriteSize', this._parent.spirteSize);
+	},
+	_setInverseStageSize : function(){
+		this.inverseStageSize = new BABYLON.Vector2(1/this._parent.stageSize.x, 1/this._parent.stageSize.y);
+		this.shader.setVector2('inverseStageSize', this.inverseStageSize);
+	},
 	_resize : function(){
 		this._buildMesh();
 		this._setViewportSize();
 	},	
-	_serialize : function(){		
+	_serialize : function(){
+		
 	}	
 };
 
