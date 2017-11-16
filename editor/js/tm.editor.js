@@ -13,7 +13,10 @@ TM.EDITOR.prototype = {
 		this.canvas = document.getElementById('renderCanvas');
 		this._startScene();
 		this._bindings();
+		this._buildShader();
 		this._project = null;
+		
+		this.viewportSize = new BABYLON.Vector2(this.canvas.width, this.canvas.height);
 		
 		this._startRender();
 	},
@@ -31,6 +34,60 @@ TM.EDITOR.prototype = {
 		this.engine = engine;
 		this.scene = scene;	
 	},
+	_buildShader : function(){
+var _vs =
+`precision highp float;
+// Attributes
+attribute vec3 position;
+attribute vec3 normal;
+attribute vec2 uv;
+// Uniforms
+uniform mat4 worldViewProjection;
+uniform float time;
+uniform float fps;
+uniform vec2 viewOffset;
+uniform vec2 viewportSize;
+
+varying vec3 vPosition;
+varying vec2 vUV;
+varying vec2 pixelCoord;
+
+void main() {
+    vec4 p = vec4( position, 1. );
+    vPosition = p.xyz;	
+	gl_Position = worldViewProjection * p;
+	vUV = uv;
+	vUV.y = 1.0 - vUV.y;
+	pixelCoord = (vUV * viewportSize) + viewOffset;
+	
+}`;
+var _fs =
+`precision highp float;
+#define pU 0.00392156862
+uniform float time;
+uniform float fps;
+uniform vec2 viewOffset;
+uniform vec2 viewportSize;
+
+varying vec3 vPosition;
+varying vec2 vUV;
+varying vec2 pixelCoord;
+
+
+void main(){
+vec3 color = vec3(1.0,1.0,vUV.y);
+float alpha = 1.0;
+
+gl_FragColor =  vec4(color, alpha);
+}
+`;
+	BABYLON.Effect.ShadersStore["editorVertexShader"] = _vs;
+	BABYLON.Effect.ShadersStore["editorFragmentShader"] = _fs;
+	
+	
+	
+	
+	},
 	_startRender : function(){
 		var self = this;	
 		self.engine.runRenderLoop(function () {
@@ -40,10 +97,7 @@ TM.EDITOR.prototype = {
 			self.engine.resize();
 			self._refresh();
 		}); 
-		
-		self.engine.resize();
-		self._refresh();
-	
+			
 	},
 	_bindings : function(){
 		var self = this;
@@ -60,6 +114,7 @@ TM.EDITOR.prototype = {
 	},
 	_refresh : function(){
 		if(!this._project){return;}
+		this.viewportSize = new BABYLON.Vector2(this.canvas.width, this.canvas.height);
 		for(var i =0; i<this._project.stages.length; i++){
 			var stage = this._project.stages[i];
 			if(i != this._project.activeStage){continue;}
@@ -91,25 +146,27 @@ TM.EDITOR.ACTS = {
 			var project = new TM.PROJECT();
 			project.name = nameIn.value+'';
 			parent._project = project;
-		}
-		pane.classList.remove('active');
-		(document.body.querySelector('.full-wrap.hidden')).classList.remove('hidden');
+			pane.classList.remove('active');
+			(document.body.querySelector('.full-wrap.hidden')).classList.remove('hidden');
+		}		
 	},
 	'create-stage' : function(e, parent){
 		var pane = document.body.querySelector('.pane.active');
-		var nameIn = pane.querySelector('[id="stage-name"]');
-		
-		var oldActive = document.body.querySelector('.item.stage.active');
-		if(oldActive){oldActive.classList.remove('active');}
+		var nameIn = pane.querySelector('[id="stage-name"]');		
 		
 		if(nameIn.value == '' || !nameIn.value){alert('Please Set Stage Name!');return;}else{
+			
+			var oldActive = document.body.querySelector('.item.stage.active');
+			if(oldActive){oldActive.classList.remove('active');}
+			
 			var stage = new TM.STAGE(parent);
 			stage.name = nameIn.value;
 			parent._project.stages.push(stage);
 			parent._project.activeStage = parent._project.stages.length-1;
+			pane.classList.remove('active');
+			TM.EDITOR.ACTS['refreshUI'](e, parent);
 		}
-		pane.classList.remove('active');
-		TM.EDITOR.ACTS['refreshUI'](e, parent);
+		
 	},	
 	'refreshUI' : function(e, parent){
 		//SceneList
@@ -121,10 +178,24 @@ TM.EDITOR.ACTS = {
 				item.setAttribute('id', i);
 				item.classList.add('item', 'stage');
 				if(parent._project.activeStage == i){item.classList.add('active');}
-				item.innerHTML = stages[i].name+':<BR><div class="list" id="children"></div>';
-				item.innerHTML += "<hr>";
-				item.innerHTML += "<a href='#' class='button small inline' act='make-stage-active' t='"+i+"'>Make Active Stage</a>";
-				item.innerHTML += "<a href='#' class='button small inline' act='add-plane' t='"+i+"'>Add Plane</a>";
+				var ihs = stages[i].name+'<hr>';
+				
+					for(var j=0; j<stages[i].planes.length; j++){
+						var p = stages[i].planes[j];
+						ihs +='<div class="item plane';
+						if(j == parent._project.activePlane && i== parent._project.activeStage){ihs+=" active"}
+						ihs +='" id="'+j+'">'+
+						p.name+"<br>"+
+						"<a href='#' class='button small inline' act='make-plane-active' p='"+i+"' t='"+j+"'>Make Active</a>"+
+						"<a href='#' class='button small inline' act='delete-plane' p='"+i+"' t='"+j+"'>Delete Plane</a>"+
+						'</div>';						
+					}				
+				ihs += "<hr>";
+				ihs+= "<a href='#' class='button small inline' act='make-stage-active' t='"+i+"'>Make Active Stage</a>";
+				ihs += "<a href='#' class='button small inline' act='add-plane' t='"+i+"'>Add Plane</a>";
+				
+				item.innerHTML = ihs;
+				
 				list.appendChild(item);
 			}
 		
@@ -211,12 +282,28 @@ TM.EDITOR.ACTS = {
 	/*SHEET LOADING END*/
 	
 	/* STAGE MANAGMENT */
+	'make-stage-active' : function(e, parent){
+		var sID = parseInt(e.target.getAttribute('t'));
+		if(sID == parent._project.activeStage){return};
+		parent._project.activePlane = -1;		
+		parent._project.activeStage = sID;	
+		TM.EDITOR.ACTS['refreshUI'](e, parent);
+		
+	},
+	'make-plane-active' : function(e, parent){
+		var sID = parseInt(e.target.getAttribute('p'));
+		if(sID != parent._project.activeStage){return};
+		var pID = parseInt(e.target.getAttribute('t'));
+		if(pID == parent._project.activePlane){return};
+		parent._project.activePlane = pID;		
+		TM.EDITOR.ACTS['refreshUI'](e, parent);		
+	},
 	'add-plane' : function(e, parent){
 		var sID = parseInt(e.target.getAttribute('t'));
 		var stage = parent._project.stages[sID];
 		stage['add-plane']();
-		parent._refresh();
-		
+		TM.EDITOR.ACTS['refreshUI'](e, parent);
+		parent._refresh();		
 	},	
 	/* END STAGE MANAGMENT */
 	
@@ -335,8 +422,6 @@ TM.EDITOR.ACTS = {
 	
 };
 
-
-
 TM.PROJECT = function(){
 	this.name = 'New Project';
 	this.stages = [];
@@ -344,6 +429,7 @@ TM.PROJECT = function(){
 		sheets : []		
 	};
 	this.activeStage = -1;
+	this.activePlane = -1;
 	return this;
 };
 
@@ -354,6 +440,7 @@ TM.STAGE = function(parent){
 	this.actors = [];
 	
 	this.viewOffset = new BABYLON.Vector2(0,0);
+	this.spriteScale = 2.0;
 	this.viewZoom = 1.0;
 	
 	
@@ -379,40 +466,66 @@ TM.STAGE.prototype = {
 TM.PLANE = function(parent){
 	this._parent = parent;
 	this._core = parent._parent;
-	console.log(this._core);
 	this.name = 'New Plane';
 	this.layers = [];
 	
 	this.planeOffset = new BABYLON.Vector2(0,0);
 	this.planeScale = 1.0;
 	this.planeMoveScale = new BABYLON.Vector2(1.0,1.0);
-	
+	this._buildShader();
+	this._setAll();
 	this._buildMesh();
 	
 };
 
 TM.PLANE.prototype = {
 	_buildMesh : function(){
-		if(this.mesh){this.mesh.dispose();}
+		console.log(this.name+":REFRESH");
 		var scene = this._core.scene;
 		var engine = this._core.engine;
+		if(this.mesh){this.mesh.dispose();}else{engine.resize();}
 		var c = scene.activeCamera;
 		var fov = c.fov;
-		console.log('fov', fov);
 		var aspectRatio = engine.getAspectRatio(c);
-		console.log('aspectRatio', aspectRatio);
 		var d = c.position.length();
 		var y = 2 * d * Math.tan(fov / 2);
-		var x = y * aspectRatio;
-		console.log(x,y);		
+		var x = y * aspectRatio;		
 		this.mesh = BABYLON.MeshBuilder.CreatePlane("output-plane", {width: x, height:y}, this._core.scene);
+		this.mesh.material = this.shader;
+	},
+	_buildShader : function(){
+		this.shader = new BABYLON.ShaderMaterial("basicShader", this._core.scene, {
+			vertex: "editor",
+			fragment: "editor",
+			},{
+			attributes: ["position", "normal", "uv"],
+			uniforms: ["world",
+			"worldView", 
+			"worldViewProjection",
+			"view", "viewOffset",
+			"viewportSize",
+			"time"]
+			});
+			
+		
+	},
+	_setAll : function(){
+		this._setViewportSize();
+		this._setViewOffset();
+	},
+	_setViewportSize : function(){
+		this.viewportScaled = new BABYLON.Vector2(this._core.viewportSize.x/(this._parent.spriteScale+this.planeScale), this._core.viewportSize.y/(this._parent.spriteScale+this.planeScale));
+		console.log(this.viewportScaled);
+		this.shader.setVector2('viewportSize', this.viewportScaled);
+	},
+	_setViewOffset : function(){
+		this.shader.setVector2('viewOffset', this._parent.viewOffset);
 	},
 	_resize : function(){
-		console.log("resize!");
 		this._buildMesh();
+		this._setViewportSize();
 	},	
-	_serialize : function(){
-		
+	_serialize : function(){		
 	}	
 };
 
