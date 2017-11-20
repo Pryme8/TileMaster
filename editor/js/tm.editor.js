@@ -76,6 +76,47 @@ uniform vec2 viewOffset;
 uniform vec2 viewportSize;
 uniform float spriteSize;
 
+#ifdef SPRITES0
+const int spritesToggle = 0;
+#endif
+#ifdef SPRITES1
+const int spritesToggle = 1;
+uniform sampler2d sprites[1];
+#endif
+#ifdef SPRITES2
+const int spritesToggle = 1;
+uniform sampler2d sprites[2];
+#endif
+#ifdef SPRITES3
+const int spritesToggle = 1;
+uniform sampler2d sprites[3];
+#endif
+#ifdef SPRITES4
+const int spritesToggle = 1;
+uniform sampler2d sprites[4];
+#endif
+
+#ifdef LAYERS0
+const int layerCount = 0;
+#endif
+#ifdef LAYERS1
+const int layerCount = 1;
+uniform sampler2d layers[1];
+#endif
+#ifdef LAYERS2
+const int layerCount = 2;
+uniform sampler2d layers[2];
+#endif
+#ifdef LAYERS3
+const int layerCount = 3;
+uniform sampler2d layers[3];
+#endif
+#ifdef LAYERS4
+const int layerCount = 4;
+uniform sampler2d layers[4];
+#endif
+
+
 varying vec3 vPosition;
 varying vec2 vUV;
 varying vec2 pixelCoord;
@@ -200,8 +241,21 @@ TM.EDITOR.ACTS = {
 						ihs +='<div class="item plane';
 						if(j == parent._project.activePlane && i== parent._project.activeStage){ihs+=" active"}
 						ihs +='" id="'+j+'">'+
-						p.name+"<br>"+
-						"<a href='#' class='button small inline' act='make-plane-active' p='"+i+"' t='"+j+"'>Make Active</a>"+
+						p.name+"<hr>";
+						for(var k=0; k<stages[i].planes[j].layers.length; k++){
+							ihs +='<div class="item layer small';
+							if(j == parent._project.activePlane && i== parent._project.activeStage && k== parent._project.activeLayer){ihs+=" active"}
+							ihs +='" id="'+k+'">';
+							ihs += "Layer - "+k+"<br>";
+							ihs +="<a href='#' class='button inline' act='make-layer-active' s='"+i+"' p='"+j+"' t='"+k+"'>Make Active</a>";
+							ihs += "</div>";
+						
+						}						
+						ihs += "<hr>"+
+						"<a href='#' class='button small inline' act='add-layer' p='"+i+"' t='"+j+"'>Add Layer</a>"+
+						"<br>"+
+						"<a href='#' class='button small inline' act='assign-sheet' p='"+i+"' t='"+j+"'>Assign Sheet</a>"+
+						//"<a href='#' class='button small inline' act='make-plane-active' p='"+i+"' t='"+j+"'>Make Active</a>"+
 						"<a href='#' class='button small inline' act='delete-plane' p='"+i+"' t='"+j+"'>Delete Plane</a>"+
 						"<a href='#' class='button small inline' act='plane-settings' p='"+i+"' t='"+j+"'>Settings</a>"+
 						'</div>';						
@@ -294,8 +348,34 @@ TM.EDITOR.ACTS = {
 
 			item.appendChild(cvas);			
 			list.appendChild(item);
+			
+		TM.EDITOR.ACTS['add-sheet-to-assign-list'](data, parent);
+	},
+	'add-sheet-to-assign-list' : function(data, parent){
 		
-	},	
+		pane = document.body.querySelector('[id="assign-sheets"].pane');
+		var list = pane.querySelector('[id="sheet-list"]');
+		var item = document.createElement('div');
+		item.setAttribute('id', data.i);
+						
+			var cvas = document.createElement('canvas');
+			cvas.width = data.width;
+			cvas.height = data.height;
+			
+			var ctx = cvas.getContext('2d');
+			ctx.putImageData(data.iDat, 0, 0);
+
+			var itemAdd = "<input id='assigned-to-0' type='checkbox' value='0' act='change-sheet-assignments'></input>"+
+			"<input id='assigned-to-1' type='checkbox' value='1' act='change-sheet-assignments'></input>"+
+			"<input id='assigned-to-2' type='checkbox' value='2' act='change-sheet-assignments'></input>"+
+			"<input id='assigned-to-3' type='checkbox' value='3' act='change-sheet-assignments'></input>";
+			
+			item.innerHTML += itemAdd;
+			
+			item.appendChild(cvas);			
+			list.appendChild(item);			
+		
+	},
 	/*SHEET LOADING END*/
 	
 	/* STAGE MANAGMENT */
@@ -321,6 +401,13 @@ TM.EDITOR.ACTS = {
 		stage['add-plane']();
 		TM.EDITOR.ACTS['refreshUI'](e, parent);
 		parent._refresh();		
+	},
+	'add-layer' : function(e, parent){
+		var sID = parseInt(e.target.getAttribute('p'));
+		var pID = parseInt(e.target.getAttribute('t'));	
+		var plane = parent._project.stages[sID].planes[pID];
+		plane._addLayer(plane);
+		TM.EDITOR.ACTS['refreshUI'](e, parent);
 	},
 	'stage-settings' : function(e, parent){
 		var sID = parseInt(e.target.getAttribute('t'));
@@ -394,6 +481,65 @@ TM.EDITOR.ACTS = {
 		
 		TM.EDITOR.ACTS['refreshUI'](e, parent);
 		parent._refresh(true);		
+		
+	},
+	'assign-sheet': function(e, parent){
+		var sID = parseInt(e.target.getAttribute('p'));
+		var pID = parseInt(e.target.getAttribute('t'));
+		var pane = document.body.querySelector('.pane.active');
+		if(pane){pane.classList.remove('active');}
+		pane = document.body.querySelector('[id="assign-sheets"].pane');
+		pane.querySelector('[id="stage-id"]').value = sID;
+		pane.querySelector('[id="plane-id"]').value = pID;
+		
+		pane.classList.add('active');
+	},
+	'change-sheet-assignments' : function(e, parent){
+		var pane = document.body.querySelector('[id="assign-sheets"].pane');
+		var list = pane.querySelector('[id="sheet-list"]');
+		
+		var item = e.target.parentNode;
+		var selects = item.querySelectorAll('input[type="checkbox"]');
+		for(var i = 0; i<selects.length; i++){
+			selects[i].checked = false;
+		}
+		e.target.checked = true;
+		
+		var id = parseInt(item.getAttribute('id'));
+		
+		var items = list.querySelectorAll('div');
+		for(var i = 0; i<items.length; i++){
+			if(id==i){continue};
+			(items[i].querySelector('input[type="checkbox"][value="'+e.target.getAttribute('value')+'"]')).checked = false;
+		}		
+	},
+	'accept-sheet-assignments': function(e, parent){
+		var pane = document.body.querySelector('[id="assign-sheets"].pane');
+		var sID = parseInt(pane.querySelector('[id="stage-id"]').value);
+		var pID = parseInt(pane.querySelector('[id="plane-id"]').value);
+		var plane = parent._project.stages[sID].planes[pID];
+		
+		var list = pane.querySelector('[id="sheet-list"]');
+		
+		var checked = list.querySelectorAll('input[type="checkbox"]:checked');
+		
+		pane.classList.remove('active');
+		
+		var out = new Array(4);
+		
+		for(var i=0; i<checked.length; i++){
+			var value = parseInt(checked[i].value);
+			var sheet = checked[i].parentNode.getAttribute('id');
+			sheet = parent._project.assets.sheets[sheet];
+			out[value] = sheet;
+		}
+		
+		for(var i=0; i<out.length; i++){
+				if(!out[i]){out.splice(i,1); i--;}
+		}
+		
+		plane._assignedSheets = out;
+		plane._rebuild();
 		
 	},
 	/* END STAGE MANAGMENT */
@@ -522,6 +668,7 @@ TM.PROJECT = function(){
 	};
 	this.activeStage = -1;
 	this.activePlane = -1;
+	this.activeLayer = -1;
 	return this;
 };
 
@@ -563,6 +710,7 @@ TM.PLANE = function(parent){
 	this._core = parent._parent;
 	this.name = 'New Plane';
 	this.layers = [];
+	this._assignedSheets = [];
 	
 	this.planeOffset = new BABYLON.Vector2(0,0);
 	this.planeScale = 1.0;
@@ -589,24 +737,35 @@ TM.PLANE.prototype = {
 		this.mesh.material = this.shader;
 	},
 	_buildShader : function(){
+		var defines = []
+		defines.push("#define SPRITES"+this._assignedSheets.length);
+		defines.push("#define LAYERS"+this.layers.length);		
 		this.shader = new BABYLON.ShaderMaterial("basicShader", this._core.scene, {
 			vertex: "editor",
 			fragment: "editor",
 			},{
 			attributes: ["position", "normal", "uv"],
+			defines: defines,
+			samplers: ['layers', 'sprites'],
 			uniforms: ["world",
 			"worldView", 
 			"worldViewProjection",
 			"view", "viewOffset",
 			"viewportSize",
 			"time", "spriteSize"]
-			});
+			});			
+	},
+	_rebuild : function(){
+		this._buildShader();
+		this._setAll();
 	},
 	_setAll : function(){
 		this._setViewportSize();
 		this._setViewOffset();
 		this._setInverseStageSize();
 		this._setSpriteSize();
+		this._setSheets();
+		this._setLayers();
 	},
 	_setViewportSize : function(){
 		this.viewportScaled = new BABYLON.Vector2(this._core.viewportSize.x/((this._parent.viewZoom+this._parent.spriteScale+this.planeScale)/3), this._core.viewportSize.y/((this._parent.viewZoom+this._parent.spriteScale+this.planeScale)/3));
@@ -622,13 +781,44 @@ TM.PLANE.prototype = {
 		this.inverseStageSize = new BABYLON.Vector2(1/this._parent.stageSize.x, 1/this._parent.stageSize.y);
 		this.shader.setVector2('inverseStageSize', this.inverseStageSize);
 	},
+	_setSheets : function(){
+		this.shader.setTextureArray('layers', this._assignedSheets);
+	},
+	_setLayers : function(){
+		var la = [];
+		for(var i = 0; i < this.layers.length; i++){
+			la.push(this.layers[i].map);
+		}
+		this.shader.setTextureArray('layers', la);
+
+	},
 	_resize : function(){
 		this._buildMesh();
 		this._setViewportSize();
 	},	
 	_serialize : function(){
 		
-	}	
+	},
+	_addLayer : function(){
+		if(this.layers.length < 4){
+			var layer = new TM.LAYER(this);
+			this.layers.push(layer);
+		}
+		this._rebuild();
+	},
+	_addSheet : function(sheet){
+		if(this._assignedSheets.length < 4){
+			this._assignedSheets.push(sheet);
+		}
+		this._rebuild();
+	},
+	
+};
+
+TM.LAYER = function(parent){
+	this._parent = parent;
+	this._core = parent._core;
+	this.map = new BABYLON.DynamicTexture(parent.name+"-layer-"+parent.layers.length, {width:parent._parent.stageSize.x , height:parent._parent.stageSize.y}, this._core.scene, false, 1);	
 };
 
 
