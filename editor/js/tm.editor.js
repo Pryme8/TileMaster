@@ -68,54 +68,26 @@ void main() {
 	
 }`;
 var _fs =
-`precision highp float;
-#define pU 0.00392156862
+`const float pU = 0.00392156862;
+
 uniform float time;
 uniform float fps;
 uniform vec2 viewOffset;
 uniform vec2 viewportSize;
 uniform float spriteSize;
+uniform vec2 inverseStageSize;
 
-#ifdef SPRITES0
-const int spritesToggle = 0;
-#endif
-#ifdef SPRITES1
-const int spritesToggle = 1;
-uniform sampler2d sprites[1];
-#endif
-#ifdef SPRITES2
-const int spritesToggle = 1;
-uniform sampler2d sprites[2];
-#endif
-#ifdef SPRITES3
-const int spritesToggle = 1;
-uniform sampler2d sprites[3];
-#endif
-#ifdef SPRITES4
-const int spritesToggle = 1;
-uniform sampler2d sprites[4];
+
+#ifdef SHEETS
+uniform sampler2D sprites[SHEETS];
+const int sheetToggle = 1;
+#else
+const int sheetToggle = 0;
 #endif
 
-#ifdef LAYERS0
-const int layerCount = 0;
+#ifdef LAYERS
+uniform sampler2D layers[LAYERS];
 #endif
-#ifdef LAYERS1
-const int layerCount = 1;
-uniform sampler2d layers[1];
-#endif
-#ifdef LAYERS2
-const int layerCount = 2;
-uniform sampler2d layers[2];
-#endif
-#ifdef LAYERS3
-const int layerCount = 3;
-uniform sampler2d layers[3];
-#endif
-#ifdef LAYERS4
-const int layerCount = 4;
-uniform sampler2d layers[4];
-#endif
-
 
 varying vec3 vPosition;
 varying vec2 vUV;
@@ -124,12 +96,25 @@ varying vec2 texCoord;
 
 
 void main(){
+if(sheetToggle == 1){
+#ifdef LAYERS
+vec4 tile = texture2D(layers[0], texCoord);
+//vec2 spriteOffset = floor(tile.xy * 256.0) * spriteSize;
 vec2 spriteCoord = mod(pixelCoord, spriteSize);
-vec3 color = vec3(spriteCoord.x,1.0,spriteCoord.y);
-if((texCoord.x > 1.0  || texCoord.x < 0.0 || texCoord.y > 1.0 || texCoord.y < 0.0)){color = vec3(0.0); }
+//vec4 tSample = texture2D(sprites, vec3(vec2((spriteOffset + spriteCoord) * inverseSpriteTextureSize)), 0);
+vec3 color = vec3(spriteCoord.xxy);
 float alpha = 1.0;
+if((texCoord.x > 1.0  || texCoord.x < 0.0 || texCoord.y > 1.0 || texCoord.y < 0.0)){color = vec3(0.0); alpha = 0.0; }
+#else
+	vec3 color = vec3(0.0);
+	float alpha = 1.0;
+#endif
 
 gl_FragColor =  vec4(color, alpha);
+}else{
+discard;
+//gl_FragColor =  vec4(vec3(0.,0.,0.), 0.);	
+}
 }
 `;
 	BABYLON.Effect.ShadersStore["editorVertexShader"] = _vs;
@@ -737,9 +722,14 @@ TM.PLANE.prototype = {
 		this.mesh.material = this.shader;
 	},
 	_buildShader : function(){
-		var defines = []
-		defines.push("#define SPRITES"+this._assignedSheets.length);
-		defines.push("#define LAYERS"+this.layers.length);		
+		var defines = [];
+		defines.push('precision highp float;');
+		if(this._assignedSheets.length){
+		defines.push("#define SHEETS "+this._assignedSheets.length);
+		}
+		if(this.layers.length){
+		defines.push("#define LAYERS "+this.layers.length);
+		}
 		this.shader = new BABYLON.ShaderMaterial("basicShader", this._core.scene, {
 			vertex: "editor",
 			fragment: "editor",
@@ -758,6 +748,7 @@ TM.PLANE.prototype = {
 	_rebuild : function(){
 		this._buildShader();
 		this._setAll();
+		this.mesh.material = this.shader;
 	},
 	_setAll : function(){
 		this._setViewportSize();
@@ -782,7 +773,7 @@ TM.PLANE.prototype = {
 		this.shader.setVector2('inverseStageSize', this.inverseStageSize);
 	},
 	_setSheets : function(){
-		this.shader.setTextureArray('layers', this._assignedSheets);
+		this.shader.setTextureArray('sprites', this._assignedSheets);
 	},
 	_setLayers : function(){
 		var la = [];
@@ -790,7 +781,6 @@ TM.PLANE.prototype = {
 			la.push(this.layers[i].map);
 		}
 		this.shader.setTextureArray('layers', la);
-
 	},
 	_resize : function(){
 		this._buildMesh();
@@ -819,6 +809,16 @@ TM.LAYER = function(parent){
 	this._parent = parent;
 	this._core = parent._core;
 	this.map = new BABYLON.DynamicTexture(parent.name+"-layer-"+parent.layers.length, {width:parent._parent.stageSize.x , height:parent._parent.stageSize.y}, this._core.scene, false, 1);	
+	this.context = this.map._context;
+		this.context.fillStyle = 'rgba(1, 0, 0, 1.0)';
+		this.context.fillRect(0, 0, 10, 10);
+		this.map.update(false);
+		
+	
+};
+
+TM.LAYER.prototype = {
+	
 };
 
 
