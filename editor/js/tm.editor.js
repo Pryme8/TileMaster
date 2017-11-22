@@ -76,13 +76,13 @@ uniform vec2 viewOffset;
 uniform vec2 viewportSize;
 uniform float spriteSize;
 uniform vec2 inverseStageSize;
+uniform vec2 mousePos;
 
+uniform float isActive;
 
 #ifdef SHEETS
 uniform sampler2D sprites[SHEETS];
-const int sheetToggle = 1;
-#else
-const int sheetToggle = 0;
+uniform vec2 inverseSheetSizes[SHEETS];
 #endif
 
 #ifdef LAYERS
@@ -96,25 +96,33 @@ varying vec2 texCoord;
 
 
 void main(){
-if(sheetToggle == 1){
+#ifdef SHEETS
 #ifdef LAYERS
 vec4 tile = texture2D(layers[0], texCoord);
-//vec2 spriteOffset = floor(tile.xy * 256.0) * spriteSize;
+vec2 spriteOffset = floor(tile.xy * 256.0) * spriteSize;
 vec2 spriteCoord = mod(pixelCoord, spriteSize);
-//vec4 tSample = texture2D(sprites, vec3(vec2((spriteOffset + spriteCoord) * inverseSpriteTextureSize)), 0);
-vec3 color = vec3(spriteCoord.xxy);
+vec4 tSample = texture2D(sprites[0], vec2((spriteOffset + spriteCoord) * vec2(1.0/480., 1./256.)));
+vec3 color = tSample.xyz;
 float alpha = 1.0;
 if((texCoord.x > 1.0  || texCoord.x < 0.0 || texCoord.y > 1.0 || texCoord.y < 0.0)){color = vec3(0.0); alpha = 0.0; }
+
+if(isActive == 1.0){
+	color.x = 1.0;
+}
+
+
+gl_FragColor =  vec4(color, alpha);
 #else
 	vec3 color = vec3(0.0);
 	float alpha = 1.0;
+	gl_FragColor =  vec4(vec3(0.,0.,0.), 0.);
 #endif
-
-gl_FragColor =  vec4(color, alpha);
-}else{
-discard;
-//gl_FragColor =  vec4(vec3(0.,0.,0.), 0.);	
-}
+#else
+	vec3 color = vec3(0.0);
+	float alpha = 1.0;
+	gl_FragColor =  vec4(vec3(0.,0.,0.), 0.);
+	
+#endif
 }
 `;
 	BABYLON.Effect.ShadersStore["editorVertexShader"] = _vs;
@@ -128,12 +136,32 @@ discard;
 		var self = this;	
 		self.engine.runRenderLoop(function () {
 			self.scene.render();
+			self._updatePlanes();
 		});
 		window.addEventListener("resize", function () {
 			self.engine.resize();
 			self._refresh();
 		}); 
 			
+	},
+	_updatePlanes : function(){
+		if((this._project) && this._project.stages.length){
+			for(var i=0; i<this._project.stages.length; i++){
+				for(var j=0; j<this._project.stages[i].planes.length; j++){
+					var plane = this._project.stages[i].planes[j];
+					if(i == this._project.activeStage && j == this._project.activePlane){
+							plane._setMousePos();
+							if(!plane._isActive){plane._setActive(true);}
+					}else{
+						if(plane._isActive){plane._setActive(false);}
+						if(!plane._clearMouse){
+							plane._clearMousePos();
+						}
+					}
+				}
+			}
+		}
+		
 	},
 	_bindings : function(){
 		var self = this;
@@ -146,7 +174,16 @@ discard;
 					}
 				}
 			
-		},false);
+		},false);		
+				
+		document.addEventListener('mousemove', (e)=>{
+			//console.log(e.clientX, e.clientY);
+				self._mousePos = new BABYLON.Vector2(e.clientX, e.clientY);
+		}, false);
+		
+		document.addEventListener('mouseout', (e)=>{
+				self._mousePos = null;
+		}, false);
 	},
 	_refresh : function(refreshAll){
 		if(!this._project){return;}
@@ -180,7 +217,7 @@ TM.EDITOR.ACTS = {
 		var pane = document.body.querySelector('.pane.active');
 		var nameIn = pane.querySelector('[id="project-name"]');
 		if(nameIn.value == '' || !nameIn.value){alert('Please Choose a Project Name!');return;}else{
-			var project = new TM.PROJECT();
+			var project = new TM.PROJECT(parent);
 			project.name = nameIn.value+'';
 			parent._project = project;
 			pane.classList.remove('active');
@@ -605,7 +642,7 @@ TM.EDITOR.ACTS = {
 			var text = reader.result;
 			var file = JSON.parse(text);
 			
-			var project = new TM.PROJECT();
+			var project = new TM.PROJECT(parent);
 			
 			project.name = file.name;			
 			parent._project = project;
@@ -645,7 +682,8 @@ TM.EDITOR.ACTS = {
 	
 };
 
-TM.PROJECT = function(){
+TM.PROJECT = function(parent){
+	this._parent = parent;
 	this.name = 'New Project';
 	this.stages = [];
 	this.assets = {
@@ -666,7 +704,7 @@ TM.STAGE = function(parent){
 	this.viewOffset = new BABYLON.Vector2(0,0);
 	this.spriteScale = 1.0;
 	this.viewZoom = 1.0;
-	this.spirteSize = 32.0;
+	this.spriteSize = 32.0;
 	
 	this.stageSize = new BABYLON.Vector2(10,10);
 	
@@ -700,6 +738,8 @@ TM.PLANE = function(parent){
 	this.planeOffset = new BABYLON.Vector2(0,0);
 	this.planeScale = 1.0;
 	this.planeMoveScale = new BABYLON.Vector2(1.0,1.0);
+	this._clearMouse = false;
+	this._isActive = false;
 	this._buildShader();
 	this._setAll();
 	this._buildMesh();
@@ -724,12 +764,15 @@ TM.PLANE.prototype = {
 	_buildShader : function(){
 		var defines = [];
 		defines.push('precision highp float;');
+		
 		if(this._assignedSheets.length){
 		defines.push("#define SHEETS "+this._assignedSheets.length);
 		}
+		
 		if(this.layers.length){
 		defines.push("#define LAYERS "+this.layers.length);
 		}
+		
 		this.shader = new BABYLON.ShaderMaterial("basicShader", this._core.scene, {
 			vertex: "editor",
 			fragment: "editor",
@@ -742,7 +785,9 @@ TM.PLANE.prototype = {
 			"worldViewProjection",
 			"view", "viewOffset",
 			"viewportSize",
-			"time", "spriteSize"]
+			"time", "spriteSize", "inverseSheetSizes",
+			"isActive"
+			]
 			});			
 	},
 	_rebuild : function(){
@@ -758,6 +803,19 @@ TM.PLANE.prototype = {
 		this._setSheets();
 		this._setLayers();
 	},
+	_setMousePos : function(){
+		if(this._core._mousePos){
+		var pickResult = this._core.scene.pick(this._core._mousePos.x, this._core._mousePos.y);
+		this._clearMouse = false;
+		//console.log(pickResult);
+		}else{
+			this._clearMousePos();
+		}
+	},
+	_clearMousePos : function(){
+		this.shader.setVector2('mousePos', new BABYLON.Vector2(-1.0,-1.0));
+		this._clearMouse = true;
+	},
 	_setViewportSize : function(){
 		this.viewportScaled = new BABYLON.Vector2(this._core.viewportSize.x/((this._parent.viewZoom+this._parent.spriteScale+this.planeScale)/3), this._core.viewportSize.y/((this._parent.viewZoom+this._parent.spriteScale+this.planeScale)/3));
 		this.shader.setVector2('viewportSize', this.viewportScaled);
@@ -766,7 +824,7 @@ TM.PLANE.prototype = {
 		this.shader.setVector2('viewOffset', this._parent.viewOffset);
 	},
 	_setSpriteSize : function(){
-		this.shader.setFloat('spriteSize', this._parent.spirteSize);
+		this.shader.setFloat('spriteSize', this._parent.spriteSize);
 	},
 	_setInverseStageSize : function(){
 		this.inverseStageSize = new BABYLON.Vector2(1/this._parent.stageSize.x, 1/this._parent.stageSize.y);
@@ -802,6 +860,11 @@ TM.PLANE.prototype = {
 		}
 		this._rebuild();
 	},
+	_setActive : function(state){
+		if(state){state=1.0;}else{state=0.0;}
+		this._isActive = state;
+		this.shader.setFloat('isActive', state);		
+	},
 	
 };
 
@@ -810,7 +873,7 @@ TM.LAYER = function(parent){
 	this._core = parent._core;
 	this.map = new BABYLON.DynamicTexture(parent.name+"-layer-"+parent.layers.length, {width:parent._parent.stageSize.x , height:parent._parent.stageSize.y}, this._core.scene, false, 1);	
 	this.context = this.map._context;
-		this.context.fillStyle = 'rgba(1, 0, 0, 1.0)';
+		this.context.fillStyle = 'rgba(0, 0, 0, 1.0)';
 		this.context.fillRect(0, 0, 10, 10);
 		this.map.update(false);
 		
