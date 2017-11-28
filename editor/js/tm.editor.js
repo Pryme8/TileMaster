@@ -15,6 +15,7 @@ TM.EDITOR.prototype = {
 		this._bindings();
 		this._buildShader();
 		this._project = null;
+		this._activeTool = 'loc-info';
 		
 		this.viewportSize = new BABYLON.Vector2(this.canvas.width, this.canvas.height);
 		
@@ -165,20 +166,35 @@ gl_FragColor =  vec4(color, alpha);
 	},
 	_bindings : function(){
 		var self = this;
-		document.addEventListener("click", (e) => {
-			var t = e.target;
-			var act = t.getAttribute('act');				
-				if(act){
+		
+		function fire(e, act){
+			if(act){
 					if(TM.EDITOR.ACTS[act]){
 					TM.EDITOR.ACTS[act](e, self);
 					}
-				}
-			
+				}	
+		}
+		
+		document.addEventListener("mousedown", (e) => {
+			var t = e.target;
+			var act = t.getAttribute('dAct');
+					fire(e,act);
 		},false);		
-				
+		document.addEventListener("mouseup", (e) => {
+			var t = e.target;
+			var act = t.getAttribute('uAct');
+				fire(e,act);
+		},false);		
+		document.addEventListener("click", (e) => {
+			var t = e.target;
+			var act = t.getAttribute('act');				
+				fire(e,act);			
+		},false);				
 		document.addEventListener('mousemove', (e)=>{
-			//console.log(e.clientX, e.clientY);
-				self._mousePos = new BABYLON.Vector2(e.clientX, e.clientY);
+			self._mousePos = new BABYLON.Vector2(e.clientX, e.clientY);
+			if(self._mouseDown){
+				
+			}
 		}, false);
 		
 		document.addEventListener('mouseout', (e)=>{
@@ -203,6 +219,24 @@ gl_FragColor =  vec4(color, alpha);
 
 
 TM.EDITOR.ACTS = {
+	/* MOUSE EVENTS AND TOOLS */
+	'mouse-down' : function(e, parent){
+		parent._mouseDown = true;
+	},
+	'mouse-up' : function(e, parent){
+		parent._mouseDown = false;
+	},
+	'click' : function(e, parent){
+		var tool = TM.EDITOR.TOOLS[parent._activeTool];
+		if(tool){
+			for(var i=0; i<tool.when.length; i++){
+				if(tool.when[i]=='click'){
+					new tool.callback(e, parent);
+					return;
+				}
+			}
+		}
+	},
 	/*PANE CONTROLS*/
 	'change-pane' : function(e, parent){
 		var pane = document.body.querySelector('.pane.active');
@@ -882,6 +916,29 @@ TM.LAYER = function(parent){
 
 TM.LAYER.prototype = {
 	
+};
+
+
+
+
+TM.EDITOR.TOOLS = {
+	'loc-info' : {
+		when : ['click'],
+		callback : function(e, parent){
+			var loc = parent._mousePos.clone();
+			var stage = parent._project.stages[parent._project.activeStage];
+			if(stage){
+				var plane = stage.planes[parent._project.activePlane];
+				if(plane){
+					console.log(stage, plane);
+					loc = loc.add(stage.viewOffset).add(plane.planeOffset);
+				}
+			}	
+			
+			console.log(loc);
+			return this;
+		}		
+	}	
 };
 
 
