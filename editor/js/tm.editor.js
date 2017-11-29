@@ -16,6 +16,7 @@ TM.EDITOR.prototype = {
 		this._buildShader();
 		this._project = null;
 		this._activeTool = 'loc-info';
+		this._palletData = {x:0, y:0, sheet:0, alpha:1};
 		
 		this.viewportSize = new BABYLON.Vector2(this.canvas.width, this.canvas.height);
 		
@@ -100,17 +101,14 @@ void main(){
 #ifdef SHEETS
 #ifdef LAYERS
 vec4 tile = texture2D(layers[0], texCoord);
+if(tile.a == 0.0){discard;}
 vec2 spriteOffset = floor(tile.xy * 256.0) * spriteSize;
 vec2 spriteCoord = mod(pixelCoord, spriteSize);
 vec4 tSample = texture2D(sprites[0], vec2((spriteOffset + spriteCoord) * vec2(1.0/480., 1./256.)));
 vec3 color = tSample.xyz;
-float alpha = 1.0;
-if((texCoord.x > 1.0  || texCoord.x < 0.0 || texCoord.y > 1.0 || texCoord.y < 0.0)){color = vec3(0.0); alpha = 0.0; }
-
-if(isActive == 1.0){
-	color.x = 1.0;
-}
-
+float alpha = tSample.a;
+if((texCoord.x > 1.0  || texCoord.x < 0.0 || texCoord.y > 1.0 || texCoord.y < 0.0) || tile.a == 0.0){color = vec3(0.0); alpha = 0.0; }
+if(alpha == 0.0 || (tile.x == 1.0 && tile.y == 1.0)){discard;}
 
 gl_FragColor =  vec4(color, alpha);
 #else
@@ -214,6 +212,27 @@ gl_FragColor =  vec4(color, alpha);
 			}
 		}
 		
+	},
+	_getActiveStage : function(){
+		if((this._project) && this._project.activeStage > -1){
+				return this._project.stages[this._project.activeStage];
+		}else{
+			return false
+		}			
+	},
+	_getActivePlane : function(){
+		if((this._getActiveStage) && this._project.activePlane > -1){
+			return this._project.stages[this._project.activeStage].planes[this._project.activePlane];
+		}else{
+			return false;
+		}
+	},
+	_getActiveLayer: function(){
+		if(((this._getActiveStage) && this._getActivePlane) && this._project.activeLayer > -1){
+			return this._project.stages[this._project.activeStage].planes[this._project.activePlane].layers[this._project.activeLayer];
+		}else{
+			return false;
+		}
 	},
 };
 
@@ -907,7 +926,7 @@ TM.LAYER = function(parent){
 	this._core = parent._core;
 	this.map = new BABYLON.DynamicTexture(parent.name+"-layer-"+parent.layers.length, {width:parent._parent.stageSize.x , height:parent._parent.stageSize.y}, this._core.scene, false, 1);	
 	this.context = this.map._context;
-		this.context.fillStyle = 'rgba(0, 0, 0, 1.0)';
+		this.context.fillStyle = 'rgba(0, 0, 0, 0.0)';
 		this.context.fillRect(0, 0, 10, 10);
 		this.map.update(false);
 		
@@ -915,7 +934,14 @@ TM.LAYER = function(parent){
 };
 
 TM.LAYER.prototype = {
-	
+	_setTile : function(loc, tDat, parent){
+		console.log("loc:", loc);
+		console.log("tDat:", tDat);
+		this.context.fillStyle = 'rgba('+tDat.x+','+tDat.y+','+tDat.sheet+','+tDat.alpha+')';
+		this.context.clearRect(loc.x, loc.y, 1, 1);
+		this.context.fillRect(loc.x, loc.y, 1, 1);
+		this.map.update(false);
+	}
 };
 
 
@@ -924,23 +950,60 @@ TM.LAYER.prototype = {
 TM.EDITOR.TOOLS = {
 	'loc-info' : {
 		when : ['click'],
-		callback : function(e, parent){
-			var loc = parent._mousePos.clone();
+		callback : function(e, parent){			
+			var loc = TM.EDITOR.FUNC._getLoc(e, parent);
+			TM.EDITOR.FUNC._loc2TileID(loc, parent);
+			return loc;
+		}		
+	},
+	'pen-tool' : {
+		when : ['click'],
+		callback : function(e, parent){			
+			if(
+			parent._project.activeStage > -1 &&
+			parent._project.activePlane > -1 &&
+			parent._project.activeLayer > -1 ){			
+			var loc = TM.EDITOR.FUNC._getLoc(e, parent);
+			loc = TM.EDITOR.FUNC._loc2TileID(loc, parent);
+			
+				var layer = parent._getActiveLayer();
+					console.log("ActiveLAyer:",layer);
+				if(layer){
+					layer._setTile(loc, parent._palletData, parent);		
+				}
+						
+			}else{
+			return false;
+			}
+		}	
+	}
+	
+};
+
+TM.EDITOR.FUNC = {
+	_getLoc : function(e, parent){
+		var loc = parent._mousePos.clone();
 			var stage = parent._project.stages[parent._project.activeStage];
 			if(stage){
 				var plane = stage.planes[parent._project.activePlane];
 				if(plane){
-					console.log(stage, plane);
+					//console.log(stage, plane);
 					loc = loc.add(stage.viewOffset).add(plane.planeOffset);
 				}
-			}	
-			
-			console.log(loc);
-			return this;
-		}		
+			}
+		return loc;
+	},
+	_loc2TileID : function(loc, parent){	
+		//console.log(loc);
+		if(parent._project.activeStage > -1){			
+		var baseSize = parent._project.stages[parent._project.activeStage].spriteSize;
+		loc.x = Math.floor(loc.x/baseSize);
+		loc.y = Math.floor(loc.y/baseSize);
+		console.log("LOC-ID:", loc);
+		}
+		return loc;
 	}	
 };
-
 
 
 
