@@ -3,3 +3,12 @@
 
 
 Work in progress...
+
+TM ->
+  Editor ->
+  Project ->
+  Sheet ->
+  Sprite ->
+  Stage ->
+    Plane ->
+      Layer ->
