@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html" charset="utf-8"/>
-    <title>TileMaster</title>
+    <title>TileMaster - Sheet Prep</title>
     <link rel="stylesheet" type="text/css" href="./css/main2.css">
 	
 	
@@ -15,13 +15,17 @@
 <canvas id="renderCanvas"></canvas>
 
 <div class='pane' id='start' name='Select Image'>
-	<center><input type='file' id='in-image'></input><center>
+	<center><input type='file' id='in-image'></input></center>
 </div>
 
 <div class='pane' id='tools' name='Settings' style='display:none;'>
 	<div class='in'><span>Sheet-Name</span><input id='name'></input></div>
 	<div class='in'><span>Tile-Size</span><input id='size' type='number' value='32' min='1'></input></div>
 	<div class='in'><span>Zoom</span><input id='zoom' value='1' type='number'  min='0.01' max='16'></input></div>
+</div>
+
+<div class='pane' id='preview' name='Preview' style='display:none;'>
+	<center><canvas id="previewCanvas"></canvas></center>
 </div>
 
 
@@ -75,7 +79,7 @@ uniform sampler2D sprite;
 uniform vec2 sheetSize;
 uniform vec2 mousePos;
 uniform float tileSize;
-
+uniform vec2 selectedTile;
 
 varying vec3 vPosition;
 varying vec2 vUV;
@@ -96,22 +100,21 @@ void main(){
 	vec2 mPos = floor(mousePos/tileSize);
 	
 	vec3 cursorColor = vec3(1.0, 0.5, 1.0);
+	vec3 selectedColor = vec3(0.0, 1.0, 1.0);
 	
-/*	if(	pixelCoord.x > mousePos.x-tileHS &&
-		pixelCoord.x < mousePos.x+tileHS &&
-		pixelCoord.y > mousePos.y-tileHS &&
-		pixelCoord.y < mousePos.y+tileHS		
-		){
-		color.x = 1.0;
-	}*/
-	
-	if(tID == mPos){
-	color = mix(color, cursorColor, 0.65);
-	if(alpha == 0.0){alpha = 1.0;}
+	if(tID == selectedTile){
+			color = mix(color, selectedColor, 0.65);
+			if(alpha == 0.0){alpha = 1.0;}
+	}else{
+		if(tID == mPos){
+			color = mix(color, cursorColor, 0.65);
+			if(alpha == 0.0){alpha = 1.0;}
+		}
 	}
 	
+		
+	if(alpha == 0.){discard;}
 	
-	//if(alpha == 0.){discard;}
 	gl_FragColor =  vec4(color, alpha);
 }
 `;
@@ -122,10 +125,7 @@ void main(){
 	var ctx = texture._context;
 	ctx.putImageData(iDat, 0, 0);
 	texture.update(false);
-	
-	
-	
-	
+
 	var defines = [];
 		defines.push('precision highp float;');
 		
@@ -140,7 +140,7 @@ void main(){
 			"worldView", 
 			"worldViewProjection",
 			"view", "viewOffset",
-			"viewportSize", "sheetSize", "mousePos"]
+			"viewportSize", "sheetSize", "mousePos", "selectedTile"]
 			});	
 	
 	var offset = new BABYLON.Vector2(0, 0);
@@ -157,18 +157,17 @@ void main(){
 	function setTileSize(){
 		shader.setFloat('tileSize', tileSize);
 	}
+	function selectTile(id){
+		shader.setVector2('selectedTile', id);
+	}
 	function setShaderDefaults(){
 		resizeShader();
 		setMousePos(new BABYLON.Vector2(0, 0));
+		selectTile(new BABYLON.Vector2(-1, -1));
 		setTileSize();
 		shader.setTexture('sprite', texture);
 		shader.setVector2('sheetSize', new BABYLON.Vector2(texture._texture._width, texture._texture._height));
-	}
-	
-	
-	
-	
-			
+	}			
 			setShaderDefaults();
 			console.log(shader);
 			
@@ -191,8 +190,28 @@ void main(){
 	var sizeIn = document.getElementById('size');
 	
 	
+	var keys = {};
+	
+	document.body.addEventListener('keydown', function(e){
+		keys[e.code] = true;
+		console.log(e.code);
+	}, false);
+	
+	document.body.addEventListener('keyup', function(e){
+		keys[e.code] = false;
+	}, false);
+	
+	
 	document.body.addEventListener('mousemove', function(e){
-			setMousePos(new BABYLON.Vector2(e.clientX, e.clientY));
+			setMousePos((new BABYLON.Vector2(e.clientX, e.clientY)).add(offset));
+	}, false);
+	
+	document.body.addEventListener('click', function(e){
+			var id = (new BABYLON.Vector2(e.clientX, e.clientY)).add(offset);
+			var size = tileSize*zoom;
+			id.x = Math.floor(id.x/size);
+			id.y = Math.floor(id.y/size);
+			selectTile(id);			
 	}, false);
 	
 	engine.runRenderLoop(function () {
@@ -215,6 +234,14 @@ void main(){
 			setTileSize();
 	}, false);
 	
+	scene.registerBeforeRender(()=>{
+	 if(keys['ArrowLeft']){offset.x+=1;}
+	 if(keys['ArrowRight']){offset.x-=1;}
+	 if(keys['ArrowUp']){offset.y+=1;}
+	 if(keys['ArrowDown']){offset.y-=1;}
+	});
+	
+	
 	buildMesh();
 };
 
@@ -224,6 +251,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	var start = document.getElementById('start');
 	var tools = document.getElementById('tools');
 	var name = document.getElementById('name');
+	var preview = document.getElementById('preview');
 	
 	input.addEventListener("change", (e)=>{
 		var file = input.files[0];
@@ -240,6 +268,7 @@ document.addEventListener("DOMContentLoaded", () => {
 			var iDat = ctx.getImageData(0,0,cvas.width, cvas.height);
 			start.style = "display:none;";
 			tools.style = "";
+			preview.style = "";
 			name.value = file.name;
 			buildScene(iDat);
 		} 
