@@ -33,6 +33,8 @@
 
 function buildScene(iDat){
 	var canvas = document.getElementById('renderCanvas');
+	var previewCanvas = document.getElementById('previewCanvas');
+	
 	var engine = new BABYLON.Engine(canvas, true);		  
 		var scene = new BABYLON.Scene(engine);
 			scene.clearColor = new BABYLON.Color3(0.8, 0.8, 0.82);
@@ -69,8 +71,6 @@ void main() {
 	
 	pixelCoord = (vUV * viewportSize) + viewOffset;
 	
-	
-	
 }`;
 var _fs =
 `uniform vec2 viewOffset;
@@ -84,8 +84,6 @@ uniform vec2 selectedTile;
 varying vec3 vPosition;
 varying vec2 vUV;
 varying vec2 pixelCoord;
-
-
 
 void main(){
 	vec2 sCoord = pixelCoord/sheetSize;
@@ -203,11 +201,13 @@ void main(){
 	
 	
 	document.body.addEventListener('mousemove', function(e){
-			setMousePos((new BABYLON.Vector2(e.clientX, e.clientY)).add(offset));
+			var pos = new BABYLON.Vector2(e.clientX, e.clientY);	
+			setMousePos(pos.add(offset.scale(zoom)));
 	}, false);
 	
 	document.body.addEventListener('click', function(e){
-			var id = (new BABYLON.Vector2(e.clientX, e.clientY)).add(offset);
+			var pos = new BABYLON.Vector2(e.clientX, e.clientY);	
+			var id = pos.add(offset.scale(zoom));
 			var size = tileSize*zoom;
 			id.x = Math.floor(id.x/size);
 			id.y = Math.floor(id.y/size);
