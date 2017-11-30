@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html" charset="utf-8"/>
+    <title>TileMaster</title>
+    <link rel="stylesheet" type="text/css" href="css/main2.css">
+	
+	
+	<script src="https://cdn.babylonjs.com/babylon.worker.js"></script>
+
+	
+</head>
+<body>
+
+<canvas id="renderCanvas"></canvas>
+
+<div class='pane' id='start' name='Select Image'>
+	<center><input type='file' id='in-image'></input><center>
+</div>
+
+
+<script>
+
+function buildScene(iDat){
+	var canvas = document.getElementById('renderCanvas');
+	var engine = new BABYLON.Engine(canvas, true);		  
+		var scene = new BABYLON.Scene(engine);
+			scene.clearColor = new BABYLON.Color3(0.8, 0.8, 0.82);
+			var camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 0, -10), scene);
+			camera.setTarget(BABYLON.Vector3.Zero());			
+			var light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+			light.intensity = .5;
+
+var _vs =
+`precision highp float;
+// Attributes
+attribute vec3 position;
+attribute vec3 normal;
+attribute vec2 uv;
+// Uniforms
+uniform mat4 worldViewProjection;
+
+uniform vec2 viewOffset;
+uniform vec2 viewportSize;
+uniform vec2 sheetSize;
+
+varying vec3 vPosition;
+varying vec2 vUV;
+varying vec2 pixelCoord;
+
+
+void main() {
+    vec4 p = vec4( position, 1. );    
+	vPosition = p.xyz;
+	
+	gl_Position = worldViewProjection * p;	
+	vUV = uv;
+	vUV.y = 1.0 - vUV.y;
+	
+	pixelCoord = (vUV * viewportSize) + viewOffset;
+	
+	
+	
+}`;
+var _fs =
+`uniform vec2 viewOffset;
+uniform vec2 viewportSize;
+uniform sampler2D sprite;
+uniform vec2 sheetSize;
+uniform vec2 mousePos;
+uniform float tileSize;
+
+
+varying vec3 vPosition;
+varying vec2 vUV;
+varying vec2 pixelCoord;
+
+
+
+void main(){
+	vec2 sCoord = pixelCoord/sheetSize;
+	if(sCoord.x < 0.  || sCoord.x > 1. || sCoord.y < 0.  || sCoord.y > 1. ){discard;}	
+	vec4 cSample = texture2D(sprite, sCoord);	
+	vec3 color = cSample.xyz;
+	float alpha = cSample.a;
+	
+	float tileHS = tileSize*0.5;
+	
+	
+	if(	pixelCoord.x > mousePos.x-tileHS &&
+		pixelCoord.x < mousePos.x+tileHS &&
+		pixelCoord.y > mousePos.y-tileHS &&
+		pixelCoord.y < mousePos.y+tileHS		
+		){
+		color.x = 1.0;
+	}
+	
+	if(alpha == 0.){discard;}
+	gl_FragColor =  vec4(color, alpha);
+}
+`;
+	BABYLON.Effect.ShadersStore["editorVertexShader"] = _vs;
+	BABYLON.Effect.ShadersStore["editorFragmentShader"] = _fs;	
+	
+	var texture = new BABYLON.DynamicTexture('sheet', {width:iDat.width, height:iDat.height}, scene, false, 1);
+	var ctx = texture._context;
+	ctx.putImageData(iDat, 0, 0);
+	texture.update(false);
+	
+	
+	
+	
+	var defines = [];
+		defines.push('precision highp float;');
+		
+		var shader = new BABYLON.ShaderMaterial("basicShader", scene, {
+			vertex: "editor",
+			fragment: "editor",
+			},{
+			attributes: ["position", "normal", "uv"],
+			defines: defines,
+			samplers: ['sprite'],
+			uniforms: ["world",
+			"worldView", 
+			"worldViewProjection",
+			"view", "viewOffset",
+			"viewportSize", "sheetSize", "mousePos"]
+			});	
+	
+	var offset = new BABYLON.Vector2(0, 0);
+	var zoom = 2.0;
+	var tileSize = 32.0;
+	
+	function resizeShader(){
+		shader.setVector2('viewportSize', new BABYLON.Vector2(canvas.width/zoom, canvas.height/zoom));
+		shader.setVector2('viewOffset', offset);
+	}
+	function setMousePos(pos){
+	shader.setVector2('mousePos', pos.divide(new BABYLON.Vector2(zoom, zoom)));
+	}
+	function setTileSize(){
+		shader.setFloat('tileSize', tileSize);
+	}
+	function setShaderDefaults(){
+		resizeShader();
+		setMousePos(new BABYLON.Vector2(0, 0));
+		setTileSize();
+		shader.setTexture('sprite', texture);
+		shader.setVector2('sheetSize', new BABYLON.Vector2(texture._texture._width, texture._texture._height));
+	}
+	
+	
+	
+	
+			
+			setShaderDefaults();
+			console.log(shader);
+			
+	var mesh;
+	
+	function buildMesh(){
+		if(mesh){mesh.dispose();}
+		var c = scene.activeCamera;
+		var fov = c.fov;
+		var aspectRatio = engine.getAspectRatio(c);
+		var d = c.position.length();
+		var y = 2 * d * Math.tan(fov / 2);
+		var x = y * aspectRatio;		
+		mesh = BABYLON.MeshBuilder.CreatePlane("output-plane", {width: x, height:y}, scene);
+		mesh.material = shader;
+	};
+	
+	
+	document.body.addEventListener('mousemove', function(e){
+			setMousePos(new BABYLON.Vector2(e.clientX, e.clientY));
+	}, false);
+	
+	engine.runRenderLoop(function () {
+			scene.render();
+	});
+	window.addEventListener("resize", function () {
+		engine.resize();
+		resizeShader();
+		buildMesh();
+	}); 
+	
+	buildMesh();
+};
+
+
+document.addEventListener("DOMContentLoaded", () => {
+	var input = document.getElementById('in-image');
+	var start = document.getElementById('start');
+	input.addEventListener("change", (e)=>{
+		var file = input.files[0];
+		var fr = new FileReader();
+		var img = new Image();
+		var cvas = document.createElement('canvas');
+		
+		img.onload =(e)=>{
+			console.log(e.target);
+			cvas.width = e.target.width;
+			cvas.height = e.target.height;
+			var ctx = cvas.getContext('2d');
+			ctx.drawImage(img,0,0);
+			var iDat = ctx.getImageData(0,0,cvas.width, cvas.height);
+			start.style = "display:none;";
+			buildScene(iDat);
+		} 
+		
+		fr.onload =(e)=>{
+			console.log(e);
+			img.src = fr.result;
+		}  // onload fires after reading is complete
+			
+		
+		fr.readAsDataURL(file);		
+	}, false);
+
+},false);
+
+</script>	
+
+	
+</body>
+</html>
