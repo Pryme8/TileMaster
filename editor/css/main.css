@@ -83,7 +83,7 @@ display:block;
 .pane.active{
 	display:block;
 }
-.item.stage.active, .item.plane.active{
+.item.stage.active, .item.plane.active, .item.layer.active{
 	border:1px solid lightblue;
 }
 

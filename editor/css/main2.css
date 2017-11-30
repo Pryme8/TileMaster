@@ -88,5 +88,29 @@ display:block;
 	
 }
 
+#tools{
+	top:1em;
+	left:100%;
+	transform:translate(calc(-100% - 1em), 0)
+}
 
+.in{
+	display:block;	
+}
+
+.in span{
+	display:block;
+	font-size:0.85em;
+	background:rgba(0,0,0,0.5);
+	padding:0.2em;
+	color:rgb(225,225,225);
+	text-shadow:1px 1px black, -1px -1px black, 1px -1px black, -1px 1px black, 0 1px black, 1px 0 black, 0 -1px black, -1px 0 black;
+	margin-bottom:-2px;
+}
+
+.in input{
+	margin-bottom:0.2em;
+	border: 1px solid rgba(0,0,0,0.5);
+	padding:0.2em;
+}
 

@@ -18,6 +18,12 @@
 	<center><input type='file' id='in-image'></input><center>
 </div>
 
+<div class='pane' id='tools' name='Settings' style='display:none;'>
+	<div class='in'><span>Sheet-Name</span><input id='name'></input></div>
+	<div class='in'><span>Tile-Size</span><input id='size' type='number' value='32' min='1'></input></div>
+	<div class='in'><span>Zoom</span><input id='zoom' value='1' type='number'  min='0.01' max='16'></input></div>
+</div>
+
 
 <script>
 
@@ -86,16 +92,26 @@ void main(){
 	
 	float tileHS = tileSize*0.5;
 	
+	vec2 tID = floor(pixelCoord/tileSize);
+	vec2 mPos = floor(mousePos/tileSize);
 	
-	if(	pixelCoord.x > mousePos.x-tileHS &&
+	vec3 cursorColor = vec3(1.0, 0.5, 1.0);
+	
+/*	if(	pixelCoord.x > mousePos.x-tileHS &&
 		pixelCoord.x < mousePos.x+tileHS &&
 		pixelCoord.y > mousePos.y-tileHS &&
 		pixelCoord.y < mousePos.y+tileHS		
 		){
 		color.x = 1.0;
+	}*/
+	
+	if(tID == mPos){
+	color = mix(color, cursorColor, 0.65);
+	if(alpha == 0.0){alpha = 1.0;}
 	}
 	
-	if(alpha == 0.){discard;}
+	
+	//if(alpha == 0.){discard;}
 	gl_FragColor =  vec4(color, alpha);
 }
 `;
@@ -128,7 +144,7 @@ void main(){
 			});	
 	
 	var offset = new BABYLON.Vector2(0, 0);
-	var zoom = 2.0;
+	var zoom = 1.0;
 	var tileSize = 32.0;
 	
 	function resizeShader(){
@@ -171,6 +187,10 @@ void main(){
 	};
 	
 	
+	var zoomIn = document.getElementById('zoom');
+	var sizeIn = document.getElementById('size');
+	
+	
 	document.body.addEventListener('mousemove', function(e){
 			setMousePos(new BABYLON.Vector2(e.clientX, e.clientY));
 	}, false);
@@ -178,11 +198,22 @@ void main(){
 	engine.runRenderLoop(function () {
 			scene.render();
 	});
+	
 	window.addEventListener("resize", function () {
 		engine.resize();
 		resizeShader();
 		buildMesh();
 	}); 
+	
+	zoomIn.addEventListener('change', function(e){
+			zoom = e.target.value;
+			resizeShader();
+	}, false);
+	
+	sizeIn.addEventListener('change', function(e){
+			tileSize = e.target.value;
+			setTileSize();
+	}, false);
 	
 	buildMesh();
 };
@@ -191,6 +222,9 @@ void main(){
 document.addEventListener("DOMContentLoaded", () => {
 	var input = document.getElementById('in-image');
 	var start = document.getElementById('start');
+	var tools = document.getElementById('tools');
+	var name = document.getElementById('name');
+	
 	input.addEventListener("change", (e)=>{
 		var file = input.files[0];
 		var fr = new FileReader();
@@ -205,6 +239,8 @@ document.addEventListener("DOMContentLoaded", () => {
 			ctx.drawImage(img,0,0);
 			var iDat = ctx.getImageData(0,0,cvas.width, cvas.height);
 			start.style = "display:none;";
+			tools.style = "";
+			name.value = file.name;
 			buildScene(iDat);
 		} 
 		
