@@ -22,6 +22,17 @@
 	<div class='in'><span>Sheet-Name</span><input id='name'></input></div>
 	<div class='in'><span>Tile-Size</span><input id='size' type='number' value='32' min='1'></input></div>
 	<div class='in'><span>Zoom</span><input id='zoom' value='1' type='number'  min='0.01' max='16'></input></div>
+	<hr>
+	<form>
+		<input type="radio" name="AnimationType" value="0" onchange=updateOutput(this); checked> None<br>
+		<input type="radio" name="AnimationType" value="1" onchange=updateOutput(this);> 1<br>
+		<input type="radio" name="AnimationType" value="2" onchange=updateOutput(this);> 2<br>
+		<input type="radio" name="AnimationType" value="3" onchange=updateOutput(this);> 3<br>
+		<input type="radio" name="AnimationType" value="4" onchange=updateOutput(this);> 4<br>
+		<input type="radio" name="AnimationType" value="5" onchange=updateOutput(this);> 5<br>
+		<input type="radio" name="AnimationType" value="6" onchange=updateOutput(this);> 6<br>
+	</form>
+	
 </div>
 
 <div class='pane' id='preview' name='Preview' style='display:none;'>
@@ -32,6 +43,13 @@
 <script>
 
 function buildScene(iDat){
+
+ output = {};
+	
+	updateOutput = function(t){
+		output[currentTile.x+":"+currentTile.y] = parseInt(t.value);
+	};
+
 	var canvas = document.getElementById('renderCanvas');
 	var previewCanvas = document.getElementById('previewCanvas');
 	
@@ -159,21 +177,20 @@ uniform vec2 sheetSize;
 varying vec3 vPosition;
 varying vec2 vUV;
 
-
 void main(){
-	
-	vec2 tileCount = sheetSize/tileSize;
-	vec2 tUnit  = 1./tileCount;
-
-
 	vec3 color = vec3(1.0);
 	float alpha = 1.0;
-	if(selectedTile.x >= 0.0 && selectedTile.y >= 0.0 ){
-		vec2 tCoord = selectedTile*tUnit;
-		vec4 cSample = texture2D(sprite, tCoord);
-		gl_FragColor =  cSample;
-	}
+	vec2 tMax = sheetSize/tileSize;
 	
+	if(selectedTile.x >= 0.0 && selectedTile.y >= 0.0 && selectedTile.x <= tMax.x && selectedTile.y <= tMax.y){
+		vec2 pUnit = 1.0/tMax;
+		vec2 offset = pUnit * selectedTile;
+		vec4 cSample = texture2D(sprite, offset + (pUnit * vUV));
+		
+		
+		
+		color = cSample.xyz;
+	}	
 	gl_FragColor =  vec4(color, alpha);
 }
 `;
@@ -186,6 +203,11 @@ void main(){
 	var ctx = texture._context;
 	ctx.putImageData(iDat, 0, 0);
 	texture.update(false);
+	
+	var textureP = new BABYLON.DynamicTexture('sheet', {width:iDat.width, height:iDat.height}, sceneP, false, 1);
+	var ctx2 = textureP._context;
+	ctx2.putImageData(iDat, 0, 0);
+	textureP.update(false);
 
 	var defines = [];
 		defines.push('precision highp float;');
@@ -225,6 +247,28 @@ void main(){
 	var offset = new BABYLON.Vector2(0, 0);
 	var zoom = 1.0;
 	var tileSize = 32.0;
+	var currentTile = new BABYLON.Vector2(-1,-1);
+	
+	var radios = document.body.querySelectorAll('input[name="AnimationType"]');
+	console.log(radios);
+	
+	function tileChanged(id){
+		var maxX = texture._texture._width/tileSize;
+		var maxY = texture._texture._height/tileSize;
+		
+		if(id.x >= 0 && id.y >= 0 && id.x < maxX && id.y < maxY){
+			output[id.x+":"+id.y] = output[id.x+":"+id.y] || 0;
+			for(var i=0; i<radios.length; i++){
+				if(radios[i].value == output[id.x+":"+id.y]){
+					radios[i].checked = true;
+					return;
+				}else{
+					radios[i].checked = false;
+				}
+			}
+		}
+		
+	}
 	
 	function resizeShader(){
 		shader.setVector2('viewportSize', new BABYLON.Vector2(canvas.width/zoom, canvas.height/zoom));
@@ -240,19 +284,24 @@ void main(){
 	function selectTile(id){
 		shader.setVector2('selectedTile', id);
 		shaderP.setVector2('selectedTile', id);
+		currentTile.x = id.x;
+		currentTile.y = id.y;
+		tileChanged(id);
 	}
+	
 	function setShaderDefaults(){
 		resizeShader();
 		setMousePos(new BABYLON.Vector2(0, 0));
 		selectTile(new BABYLON.Vector2(-1, -1));
 		setTileSize();
 		shader.setTexture('sprite', texture);
-		shaderP.setTexture('sprite', texture);
+		shaderP.setTexture('sprite', textureP);
 		shader.setVector2('sheetSize', new BABYLON.Vector2(texture._texture._width, texture._texture._height));
 		shaderP.setVector2('sheetSize', new BABYLON.Vector2(texture._texture._width, texture._texture._height));
-	}			
+	}	
+	
 			setShaderDefaults();
-			console.log(shader);
+			console.log(shader, shaderP);
 			
 	var mesh;
 	var pMesh;
@@ -303,7 +352,7 @@ void main(){
 			setMousePos(pos.add(offset.scale(zoom)));
 	}, false);
 	
-	document.body.addEventListener('click', function(e){
+	canvas.addEventListener('click', function(e){
 			var pos = new BABYLON.Vector2(e.clientX, e.clientY);	
 			var id = pos.add(offset.scale(zoom));
 			var size = tileSize*zoom;
@@ -338,13 +387,11 @@ void main(){
 	});
 	
 	
-	
-	
-	
-	
-	
 	engine.runRenderLoop(function () {
 			scene.render();
+	});
+	
+	engineP.runRenderLoop(function () {
 			sceneP.render();
 	});
 	
