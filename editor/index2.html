@@ -27,10 +27,11 @@
 		<input type="radio" name="AnimationType" value="0" onchange=updateOutput(this); checked> None<br>
 		<input type="radio" name="AnimationType" value="1" onchange=updateOutput(this);> 1<br>
 		<input type="radio" name="AnimationType" value="2" onchange=updateOutput(this);> 2<br>
-		<input type="radio" name="AnimationType" value="3" onchange=updateOutput(this);> 3<br>
 		<input type="radio" name="AnimationType" value="4" onchange=updateOutput(this);> 4<br>
 		<input type="radio" name="AnimationType" value="5" onchange=updateOutput(this);> 5<br>
-		<input type="radio" name="AnimationType" value="6" onchange=updateOutput(this);> 6<br>
+		<input type="radio" name="AnimationType" value="8" onchange=updateOutput(this);> 8<br>
+		<input type="radio" name="AnimationType" value="9" onchange=updateOutput(this);> 9<br>
+		<input type="radio" name="AnimationType" value="10" onchange=updateOutput(this);> 10<br>
 	</form>
 	
 </div>
@@ -47,7 +48,9 @@ function buildScene(iDat){
  output = {};
 	
 	updateOutput = function(t){
-		output[currentTile.x+":"+currentTile.y] = parseInt(t.value);
+	var v = parseInt(t.value);
+		output[currentTile.x+":"+currentTile.y].type = v;
+		setAnimationType(v);
 	};
 
 	var canvas = document.getElementById('renderCanvas');
@@ -173,6 +176,8 @@ uniform sampler2D sprite;
 uniform float tileSize;
 uniform vec2 selectedTile;
 uniform vec2 sheetSize;
+uniform float animationType;
+uniform float time;
 
 varying vec3 vPosition;
 varying vec2 vUV;
@@ -181,13 +186,61 @@ void main(){
 	vec3 color = vec3(1.0);
 	float alpha = 1.0;
 	vec2 tMax = sheetSize/tileSize;
-	
+	int _f;
+	vec2 _selectedTile = selectedTile;
 	if(selectedTile.x >= 0.0 && selectedTile.y >= 0.0 && selectedTile.x <= tMax.x && selectedTile.y <= tMax.y){
 		vec2 pUnit = 1.0/tMax;
-		vec2 offset = pUnit * selectedTile;
-		vec4 cSample = texture2D(sprite, offset + (pUnit * vUV));
 		
+		if(animationType == 1.0){
+			_f = int(mod(time, 2.));
+			if(_f == 1){_selectedTile.x+=1.0;}
+		}else if(animationType == 2.){
+			_f = int(mod(time, 2.));
+			if(_f == 1){_selectedTile.y+=1.0;}
+		}else if(animationType == 4.){
+			_f = int(mod(time, 4.));
+				if(_f == 1){_selectedTile.x+=1.0;}
+				if(_f == 2){_selectedTile.x+=2.0;}
+				if(_f == 3){_selectedTile.x+=3.0;}
+		}else if(animationType == 5.){
+			_f = int(mod(time, 6.));
+				if(_f == 1){_selectedTile.x+=1.;}
+				if(_f == 2){_selectedTile.x+=2.;}
+				if(_f == 3){_selectedTile.y+=1.;}
+				if(_f == 4){_selectedTile.x+=1.;_selectedTile.y+=1.;}
+				if(_f == 5){_selectedTile.x+=2.;_selectedTile.y+=1.;}
+		}else if(animationType == 8.){
+			_f = int(mod(time, 6.));
+				if(_f == 1){_selectedTile.x+=1.;}
+				if(_f == 2){_selectedTile.y+=1.;}
+				if(_f == 3){_selectedTile.x+=1.;_selectedTile.y+=1.;}
+				if(_f == 4){_selectedTile.y+=2.;}
+				if(_f == 5){_selectedTile.x+=1.;_selectedTile.y+=2.;}
+		}else if(animationType== 9.){
+			_f = int(mod(time, 8.));
+				if(_f == 1){_selectedTile.x+=1.;}
+				if(_f == 2){_selectedTile.x+=2.;}
+				if(_f == 3){_selectedTile.y+=1.;}
+				if(_f == 4){_selectedTile.x+=1.;_selectedTile.y+=1.;}
+				if(_f == 5){_selectedTile.x+=2.;_selectedTile.y+=1.;}
+				if(_f == 6){_selectedTile.y+=2.;}
+				if(_f == 7){_selectedTile.x+=1.;_selectedTile.y+=2.;}			
+		}else if(animationType== 10.){
+			_f = int(mod(time, 9.));
+				if(_f == 1){_selectedTile.x+=1.;}
+				if(_f == 2){_selectedTile.x+=2.;}
+				if(_f == 3){_selectedTile.y+=1.;}
+				if(_f == 4){_selectedTile.x+=1.;_selectedTile.y+=1.;}
+				if(_f == 5){_selectedTile.x+=2.;_selectedTile.y+=1.;}
+				if(_f == 6){_selectedTile.y+=2.;}
+				if(_f == 7){_selectedTile.x+=1.;_selectedTile.y+=2.;}
+				if(_f == 8){_selectedTile.x+=2.;_selectedTile.y+=2.;}
+		}
 		
+				
+		vec2 offset = pUnit * _selectedTile;		
+		
+		vec4 cSample = texture2D(sprite, offset + (pUnit * vUV));		
 		
 		color = cSample.xyz;
 	}	
@@ -239,7 +292,7 @@ void main(){
 			uniforms: ["world",
 			"worldView", 
 			"worldViewProjection",
-			"view", "selectedTile", "sheetSize"]
+			"view", "selectedTile", "sheetSize", "animationType", "time"]
 			});	
 	
 	
@@ -248,6 +301,7 @@ void main(){
 	var zoom = 1.0;
 	var tileSize = 32.0;
 	var currentTile = new BABYLON.Vector2(-1,-1);
+	var time = 0;
 	
 	var radios = document.body.querySelectorAll('input[name="AnimationType"]');
 	console.log(radios);
@@ -257,10 +311,12 @@ void main(){
 		var maxY = texture._texture._height/tileSize;
 		
 		if(id.x >= 0 && id.y >= 0 && id.x < maxX && id.y < maxY){
-			output[id.x+":"+id.y] = output[id.x+":"+id.y] || 0;
+			output[id.x+":"+id.y] = output[id.x+":"+id.y] || {type:0};
 			for(var i=0; i<radios.length; i++){
-				if(radios[i].value == output[id.x+":"+id.y]){
+				var t = output[id.x+":"+id.y].type;
+				if(radios[i].value == t){
 					radios[i].checked = true;
+					setAnimationType(t);
 					return;
 				}else{
 					radios[i].checked = false;
@@ -268,6 +324,10 @@ void main(){
 			}
 		}
 		
+	}
+	
+	function setAnimationType(t){
+		shaderP.setFloat('animationType', t);
 	}
 	
 	function resizeShader(){
@@ -298,7 +358,9 @@ void main(){
 		shaderP.setTexture('sprite', textureP);
 		shader.setVector2('sheetSize', new BABYLON.Vector2(texture._texture._width, texture._texture._height));
 		shaderP.setVector2('sheetSize', new BABYLON.Vector2(texture._texture._width, texture._texture._height));
+		shaderP.setFloat('animationType', 0);
 	}	
+	
 	
 			setShaderDefaults();
 			console.log(shader, shaderP);
@@ -380,10 +442,13 @@ void main(){
 	}, false);
 	
 	scene.registerBeforeRender(()=>{
+	 time += 0.01;
+	 shaderP.setFloat('time', time);
 	 if(keys['ArrowLeft']){offset.x+=1;}
 	 if(keys['ArrowRight']){offset.x-=1;}
 	 if(keys['ArrowUp']){offset.y+=1;}
 	 if(keys['ArrowDown']){offset.y-=1;}
+	 
 	});
 	
 	
