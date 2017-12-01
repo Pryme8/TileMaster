@@ -39,9 +39,14 @@ function buildScene(iDat){
 		var scene = new BABYLON.Scene(engine);
 			scene.clearColor = new BABYLON.Color3(0.8, 0.8, 0.82);
 			var camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 0, -10), scene);
-			camera.setTarget(BABYLON.Vector3.Zero());			
-			var light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
-			light.intensity = .5;
+			camera.setTarget(BABYLON.Vector3.Zero());
+
+	var engineP = new BABYLON.Engine(previewCanvas, true);		  
+		var sceneP = new BABYLON.Scene(engineP);
+			sceneP.clearColor = new BABYLON.Color3(0.8, 0.8, 0.82);
+			var cameraP = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 0, -10), sceneP);
+			cameraP.setTarget(BABYLON.Vector3.Zero());
+			
 
 var _vs =
 `precision highp float;
@@ -117,7 +122,65 @@ void main(){
 }
 `;
 	BABYLON.Effect.ShadersStore["editorVertexShader"] = _vs;
-	BABYLON.Effect.ShadersStore["editorFragmentShader"] = _fs;	
+	BABYLON.Effect.ShadersStore["editorFragmentShader"] = _fs;
+
+
+
+
+var _vs2 =
+`precision highp float;
+// Attributes
+attribute vec3 position;
+attribute vec3 normal;
+attribute vec2 uv;
+// Uniforms
+uniform mat4 worldViewProjection;
+
+varying vec3 vPosition;
+varying vec2 vUV;
+
+
+
+void main() {
+    vec4 p = vec4( position, 1. );    
+	vPosition = p.xyz;	
+	gl_Position = worldViewProjection * p;	
+	vUV = uv;
+	vUV.y = 1.0 - vUV.y;
+}`;
+
+var _fs2 =
+`
+uniform sampler2D sprite;
+uniform float tileSize;
+uniform vec2 selectedTile;
+uniform vec2 sheetSize;
+
+varying vec3 vPosition;
+varying vec2 vUV;
+
+
+void main(){
+	
+	vec2 tileCount = sheetSize/tileSize;
+	vec2 tUnit  = 1./tileCount;
+
+
+	vec3 color = vec3(1.0);
+	float alpha = 1.0;
+	if(selectedTile.x >= 0.0 && selectedTile.y >= 0.0 ){
+		vec2 tCoord = selectedTile*tUnit;
+		vec4 cSample = texture2D(sprite, tCoord);
+		gl_FragColor =  cSample;
+	}
+	
+	gl_FragColor =  vec4(color, alpha);
+}
+`;
+
+	BABYLON.Effect.ShadersStore["previewVertexShader"] = _vs2;
+	BABYLON.Effect.ShadersStore["previewFragmentShader"] = _fs2;
+	
 	
 	var texture = new BABYLON.DynamicTexture('sheet', {width:iDat.width, height:iDat.height}, scene, false, 1);
 	var ctx = texture._context;
@@ -139,7 +202,25 @@ void main(){
 			"worldViewProjection",
 			"view", "viewOffset",
 			"viewportSize", "sheetSize", "mousePos", "selectedTile"]
+			});
+			
+			var defines2 = [];
+		defines2.push('precision highp float;');
+		
+		var shaderP = new BABYLON.ShaderMaterial("previewShader", sceneP, {
+			vertex: "preview",
+			fragment: "preview",
+			},{
+			attributes: ["position", "normal", "uv"],
+			defines: defines2,
+			samplers: ['sprite'],
+			uniforms: ["world",
+			"worldView", 
+			"worldViewProjection",
+			"view", "selectedTile", "sheetSize"]
 			});	
+	
+	
 	
 	var offset = new BABYLON.Vector2(0, 0);
 	var zoom = 1.0;
@@ -154,9 +235,11 @@ void main(){
 	}
 	function setTileSize(){
 		shader.setFloat('tileSize', tileSize);
+		shaderP.setFloat('tileSize', tileSize);
 	}
 	function selectTile(id){
 		shader.setVector2('selectedTile', id);
+		shaderP.setVector2('selectedTile', id);
 	}
 	function setShaderDefaults(){
 		resizeShader();
@@ -164,12 +247,15 @@ void main(){
 		selectTile(new BABYLON.Vector2(-1, -1));
 		setTileSize();
 		shader.setTexture('sprite', texture);
+		shaderP.setTexture('sprite', texture);
 		shader.setVector2('sheetSize', new BABYLON.Vector2(texture._texture._width, texture._texture._height));
+		shaderP.setVector2('sheetSize', new BABYLON.Vector2(texture._texture._width, texture._texture._height));
 	}			
 			setShaderDefaults();
 			console.log(shader);
 			
 	var mesh;
+	var pMesh;
 	
 	function buildMesh(){
 		if(mesh){mesh.dispose();}
@@ -182,6 +268,18 @@ void main(){
 		mesh = BABYLON.MeshBuilder.CreatePlane("output-plane", {width: x, height:y}, scene);
 		mesh.material = shader;
 	};
+	function buildMesh2(){
+		if(pMesh){pMesh.dispose();}
+		var c = sceneP.activeCamera;
+		var fov = c.fov;
+		var aspectRatio = engineP.getAspectRatio(c);
+		var d = c.position.length();
+		var y = 2 * d * Math.tan(fov / 2);
+		var x = y * aspectRatio;		
+		pMesh = BABYLON.MeshBuilder.CreatePlane("output-plane", {width: x, height:y}, sceneP);
+		pMesh.material = shaderP;
+	};
+	
 	
 	
 	var zoomIn = document.getElementById('zoom');
@@ -214,9 +312,7 @@ void main(){
 			selectTile(id);			
 	}, false);
 	
-	engine.runRenderLoop(function () {
-			scene.render();
-	});
+	
 	
 	window.addEventListener("resize", function () {
 		engine.resize();
@@ -242,7 +338,19 @@ void main(){
 	});
 	
 	
+	
+	
+	
+	
+	
+	engine.runRenderLoop(function () {
+			scene.render();
+			sceneP.render();
+	});
+	
+	
 	buildMesh();
+	buildMesh2();
 };
 
 
