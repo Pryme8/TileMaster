@@ -2,7 +2,7 @@
 babylon.js 2.5d TileAtlas Shader Engine
 ----------
 > **Features:**
-
+>
 > - Parallax Tile Atlas.
 > - Atlas Animation Support.
 > - Asset Preparation/Serialization
@@ -68,5 +68,6 @@ x:10
 [7][8][9]
  
 > **Animation Speeds:**
+>
 > Speed-Multiplyer - Number between 0.004 and 1, the lower the number the faster the animation.
 > Speed-Divider - Number between 0.004 and 1, the lower the number the slower the animation.
