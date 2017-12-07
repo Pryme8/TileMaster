@@ -101,9 +101,9 @@ display:block;
 }
 
 #preview{
-	top:50%;
+	top:1em;
 	left:100%;
-	transform:translate(calc(-100% - 1em), 0);
+	transform:translate(calc(-100% - 1em - 198px), 0);
 }
 
 .in{
@@ -124,5 +124,18 @@ display:block;
 	margin-bottom:0.2em;
 	border: 1px solid rgba(0,0,0,0.5);
 	padding:0.2em;
+}
+
+.button{
+	text-decoration:none;
+	color:#274156;
+	padding:0.2em 0.5em;
+	border:1px solid slategray;
+	background:#838e96;
+	text-shadow:1px 1px white, -1px -1px white, 1px -1px white, -1px 1px white, 0 1px white, 1px 0 white, 0 -1px white, -1px 0 white;
+}
+
+.button:hover{
+	background:#43535f;
 }
 

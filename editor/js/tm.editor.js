@@ -370,7 +370,9 @@ TM.EDITOR.ACTS = {
 		var texture = new BABYLON.Texture(img.src, parent.scene, true, false, 1,
 		()=>{
 			texture.inverseSize = new BABYLON.Vector2(1/texture._texture._width, 1/texture._texture._height);
-			texture.tileSize = 32.0;
+			texture.tileSize = 32.0;			
+			texture.animationMap = new BABYLON.DynamicTexture('animation-map', {width:texture._texture._width, height:texture._texture._width}, parent.scene, false, 1);
+			
 			var canvas = document.createElement('canvas');
 			var context = canvas.getContext('2d');			
 			canvas.width = img.width;
@@ -382,8 +384,7 @@ TM.EDITOR.ACTS = {
 				TM.EDITOR.ACTS['add-sheet-to-management-list']({iDat: data, width: data.width, height:data.height, i:id}, parent);		
 			parent._project.assets.sheets.push(texture);
 			parent._tasks--;			
-		});	
-		
+		});		
 	},
 	'parse-sheet' : function(data, parent){		
 		var texture = new BABYLON.DynamicTexture('parsed-sheet', {width:data.width || 1, height:data.height || 1}, parent.scene, false, 1);
@@ -421,8 +422,14 @@ TM.EDITOR.ACTS = {
 			var ctx = cvas.getContext('2d');
 			ctx.putImageData(data.iDat, 0, 0);
 
-			item.appendChild(cvas);			
+			item.appendChild(cvas);
+
+			var menu = document.createElement('div');
+			menu.innerHTML = "<a href='#' class='button small inline' act='edit-animation-map' t='"+data.i+"'>Edit Animation Map</a><hr>";
+			
+			item.appendChild(menu);
 			list.appendChild(item);
+			
 			
 		TM.EDITOR.ACTS['add-sheet-to-assign-list'](data, parent);
 	},
@@ -462,6 +469,15 @@ TM.EDITOR.ACTS = {
 		TM.EDITOR.ACTS['refreshUI'](e, parent);
 		
 	},
+	'make-layer-active' : function(e, parent){
+		var sID = parseInt(e.target.getAttribute('s'));
+		var pID = parseInt(e.target.getAttribute('p'));
+		var lID = parseInt(e.target.getAttribute('t'));
+		parent._project.activeStage = sID;	
+		parent._project.activePlane = pID;
+		parent._project.activeLayer = lID;			
+		TM.EDITOR.ACTS['refreshUI'](e, parent);		
+	},	
 	'make-plane-active' : function(e, parent){
 		var sID = parseInt(e.target.getAttribute('p'));
 		if(sID != parent._project.activeStage){return};
