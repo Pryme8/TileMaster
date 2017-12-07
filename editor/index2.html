@@ -13,6 +13,7 @@
 <body>
 
 <canvas id="renderCanvas"></canvas>
+<canvas id="hiddenCanvas" style='display:none;'></canvas>
 
 <div class='pane' id='start' name='Select Image'>
 	<center><input type='file' id='in-image'></input></center>
@@ -32,9 +33,11 @@
 		<input type="radio" name="AnimationType" value="8" onchange=updateOutput(this);> 8<br>
 		<input type="radio" name="AnimationType" value="9" onchange=updateOutput(this);> 9<br>
 		<input type="radio" name="AnimationType" value="10" onchange=updateOutput(this);> 10<br>
+		<input type="radio" name="AnimationType" value="11" onchange=updateOutput(this);> 11<br>
 	</form>
 		<div class='in'><span>Speed-Multiplyer</span><input id='speed-multiply' value='1' max='1' min='0.001' type='number' onchange=updateOutputSpeed(this);></input></div>
 		<div class='in'><span>Speed-Divider</span><input id='speed-divide' value='1' max='1' min='0.001' type='number' onchange=updateOutputSpeed(this);></input></div>
+		<a href='#' class='button' onclick=compile();>SAVE/EXPORT</a>
 </div>
 
 <div class='pane' id='preview' name='Preview' style='display:none;'>
@@ -43,10 +46,17 @@
 
 
 <script>
-
+output = {};
+tmsFlag = 0;
 function buildScene(iDat){
-
- output = {};
+	
+	
+	compile = function(){
+		var sheet = (new TM.SHEET())._buildFromEditor(output);
+		console.log(sheet);
+		var data = sheet._serialize();
+		sheet._export(data);
+	};	
 	
 	updateOutput = function(t){
 	var v = parseInt(t.value);
@@ -68,6 +78,11 @@ function buildScene(iDat){
 
 	var canvas = document.getElementById('renderCanvas');
 	var previewCanvas = document.getElementById('previewCanvas');
+	var hiddenCanvas = document.getElementById('hiddenCanvas');
+	hiddenCanvas.width = iDat.width;
+	hiddenCanvas.height = iDat.height;
+	var hctx = hiddenCanvas.getContext('2d');
+	hctx.putImageData(iDat, 0,0);
 	
 	var engine = new BABYLON.Engine(canvas, true);		  
 		var scene = new BABYLON.Scene(engine);
@@ -220,20 +235,25 @@ void main(){
 				if(_f == 2){_selectedTile.x+=2.0;}
 				if(_f == 3){_selectedTile.x+=3.0;}
 		}else if(animationType == 5.){
+			_f = int(mod(_time, 4.));
+				if(_f == 1){_selectedTile.x+=1.;}
+				if(_f == 2){_selectedTile.y+=1.;}
+				if(_f == 3){_selectedTile.x+=1.;_selectedTile.y+=1.;}
+		}else if(animationType == 8.){
 			_f = int(mod(_time, 6.));
 				if(_f == 1){_selectedTile.x+=1.;}
 				if(_f == 2){_selectedTile.x+=2.;}
 				if(_f == 3){_selectedTile.y+=1.;}
 				if(_f == 4){_selectedTile.x+=1.;_selectedTile.y+=1.;}
 				if(_f == 5){_selectedTile.x+=2.;_selectedTile.y+=1.;}
-		}else if(animationType == 8.){
+		}else if(animationType == 9.){
 			_f = int(mod(_time, 6.));
 				if(_f == 1){_selectedTile.x+=1.;}
 				if(_f == 2){_selectedTile.y+=1.;}
 				if(_f == 3){_selectedTile.x+=1.;_selectedTile.y+=1.;}
 				if(_f == 4){_selectedTile.y+=2.;}
 				if(_f == 5){_selectedTile.x+=1.;_selectedTile.y+=2.;}
-		}else if(animationType== 9.){
+		}else if(animationType== 10.){
 			_f = int(mod(_time, 8.));
 				if(_f == 1){_selectedTile.x+=1.;}
 				if(_f == 2){_selectedTile.x+=2.;}
@@ -242,7 +262,7 @@ void main(){
 				if(_f == 5){_selectedTile.x+=2.;_selectedTile.y+=1.;}
 				if(_f == 6){_selectedTile.y+=2.;}
 				if(_f == 7){_selectedTile.x+=1.;_selectedTile.y+=2.;}			
-		}else if(animationType== 10.){
+		}else if(animationType== 11.){
 			_f = int(mod(_time, 9.));
 				if(_f == 1){_selectedTile.x+=1.;}
 				if(_f == 2){_selectedTile.x+=2.;}
@@ -372,7 +392,9 @@ void main(){
 	shader.setVector2('mousePos', pos.divide(new BABYLON.Vector2(zoom, zoom)));
 	}
 	function setTileSize(){
+	if(!tmsFlag){
 		output = {};
+	}else{tmsFlag = false;}
 		shader.setFloat('tileSize', tileSize);
 		shaderP.setFloat('tileSize', tileSize);
 	}
@@ -508,10 +530,51 @@ document.addEventListener("DOMContentLoaded", () => {
 	var start = document.getElementById('start');
 	var tools = document.getElementById('tools');
 	var name = document.getElementById('name');
+	var size = document.getElementById('size');
 	var preview = document.getElementById('preview');
 	
 	input.addEventListener("change", (e)=>{
 		var file = input.files[0];
+		var filename = file.name.split('.');
+		var type = filename[filename.length-1];
+		filename = filename[0];		
+		
+		if(type == 'tms'){
+			
+			var fr = new FileReader();
+				fr.onload = function(){
+					var text = fr.result;
+					var file = JSON.parse(text);
+					console.log(file);
+					var iDat = TM._convertImageData(file.iDat, true);
+					
+					name.value = file.name;
+					size.value = file.tileSize;
+					var i = 0;
+					var aDat = file.animationDat.data;
+					for(var y=0; y<file.animationDat.height; y++){
+						for(var x=0; x<file.animationDat.width; x++){
+							var pid = i*4;
+							var id = x+":"+y;
+							output[id] = {
+								type : aDat[pid],
+								sMul : aDat[pid+1]/255,
+								sDiv : aDat[pid+2]/255
+							};							
+							i++;
+						}
+					}
+					
+					start.style = "display:none;";
+					tools.style = "";
+					preview.style = "";
+					tmsFlag = 1;
+					buildScene(iDat);
+				};
+			fr.readAsText(file);
+		
+				
+		}else{		
 		var fr = new FileReader();
 		var img = new Image();
 		var cvas = document.createElement('canvas');
@@ -536,7 +599,8 @@ document.addEventListener("DOMContentLoaded", () => {
 		}  // onload fires after reading is complete
 			
 		
-		fr.readAsDataURL(file);		
+		fr.readAsDataURL(file);
+		}		
 	}, false);
 
 },false);

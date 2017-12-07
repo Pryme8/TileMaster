@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html" charset="utf-8"/>
+    <title>TileMaster</title>
+    <link rel="stylesheet" type="text/css" href="css/main.css">
+	
+	
+	<script src="https://cdn.babylonjs.com/babylon.worker.js"></script>
+	<script src="./js/tm.editor.js"></script>
+	
+</head>
+<body>
+
+<div class='full-wrap hidden' id='workspace'>
+<canvas id="renderCanvas" dAct='mouse-down' uAct='mouse-up' act='click'></canvas>	
+	<div class='sub-pane' id='navigator'>
+		<div class='list' id='scene-list'>
+			No Stages;		
+		</div>
+	
+	<div class='list' id='tools'>
+		<a href='#' class='button' act='change-pane' t='create-stage'>Create Stage</a>
+		<a href='#' class='button inline' act='change-pane' t='add-sheet'>Add Sheet</a>
+		<a href='#' class='button inline' act='change-pane' t='manage-sheets'>Manage Sheets</a>
+		<hr>
+		<a href='#' class='button' act='export-project'>Export Project</a><BR>	
+	</div>
+	
+	</div>
+	
+</div>
+
+
+<div class='full-wrap' id='panes'>
+	<div class='pane active' id='start-up'>
+		<a href='#' class='button' act='change-pane' t='new-project'>Create New Project</a>
+		<a href='#' class='button' act='change-pane' t='load-project'>Load Project</a>
+	</div>
+	
+	<div class='pane' id='load-project'>
+		<div class='input'>
+		<span>Project:</span>
+		<input id='loaded-project' type='file'></input>
+		</div>
+	
+		<a href='#' class='button' act='import-project'>Confirm</a>
+		<a href='#' class='button' act='change-pane' t='start-up'>Cancel</a>
+	</div>
+	
+	<div class='pane' id='new-project'>
+		<div class='input'>
+		<span>Project Name:</span>
+		<input id='project-name' type='text' placeholder='Name'></input>
+		</div>
+	
+		<a href='#' class='button' act='create-new-project'>Confirm</a>
+		<a href='#' class='button' act='change-pane' t='start-up'>Cancel</a>
+	</div>
+	
+	<div class='pane' id='create-stage'>
+		<div class='input'>
+		<span>Stage Name:</span>
+		<input id='stage-name' type='text' placeholder='Name'></input>
+		</div>
+	
+		<a href='#' class='button' act='create-stage'>Confirm</a>
+		<a href='#' class='button' act='close-pane'>Cancel</a>
+	</div>
+	
+	<div class='pane' id='add-sheet'>
+		<div class='input'>
+		 <input id='url' type='text' placeholder='url'></input>
+		</div>	
+		<a href='#' class='button' act='add-sheet'>Confirm</a>
+		<a href='#' class='button' act='close-pane'>Cancel</a>
+	</div>
+	
+	<div class='pane' id='manage-sheets'>
+		<div class='list' id='sheet-list'>
+		
+		</div>
+		<a href='#' class='button' act='close-pane'>Done</a>
+	</div>
+	
+	<div class='pane' id='assign-sheets'>
+		<input id='stage-id' type='number' class='hidden'></input>
+		<input id='plane-id' type='number' class='hidden'></input>
+		<div class='list' id='sheet-list'>
+			
+		</div>
+		<a href='#' class='button' act='accept-sheet-assignments'>Confirm</a>
+		<a href='#' class='button' act='close-pane'>Cancel</a>
+	</div>
+	
+	<div class='pane' id='stage-settings'>	
+		<input id='stage-id' type='number' class='hidden'></input>
+	
+		<div class='input'>
+		<span>Stage Name:</span>
+		<input id='stage-name' type='text' placeholder='Name'></input>
+		</div>
+		
+		<div class='input'>
+		<span>Stage Width:</span>
+		<input id='stage-width' type='number' step='1' min='1' max='4096' ></input>
+		</div>
+		
+		<div class='input'>
+		<span>Stage Height:</span>
+		<input id='stage-height' type='number' step='1' min='1' max='4096' ></input>
+		</div>
+		<a href='#' class='button' act='stage-settings-update'>Confirm</a>
+		<a href='#' class='button' act='close-pane'>Cancel</a>
+	</div>
+	
+	<div class='pane' id='plane-settings'>
+		<input id='stage-id' type='number' class='hidden'></input>
+		<input id='plane-id' type='number' class='hidden'></input>
+	
+		<div class='input'>
+		<span>Plane Name:</span>
+		<input id='plane-name' type='text' placeholder='Name'></input>
+		</div>
+		
+		<div class='input'>
+		<span>Plane Offset X:</span>
+		<input id='plane-offset-x' type='number'></input>
+		</div>
+		<div class='input'>
+		<span>Plane Offset Y:</span>
+		<input id='plane-offset-y' type='number'></input>
+		</div>
+		<div class='input'>
+		<span>Plane Scale:</span>
+		<input id='plane-scale' type='number'></input>
+		</div>
+		<div class='input'>
+		<span>Plane Move Scale X:</span>
+		<input id='plane-move-scale-x' type='number'></input>
+		</div>
+		<div class='input'>
+		<span>Plane Move Scale Y:</span>
+		<input id='plane-move-scale-y' type='number'></input>
+		</div>
+
+		<a href='#' class='button' act='plane-settings-update'>Confirm</a>
+		<a href='#' class='button' act='close-pane'>Cancel</a>
+	</div>
+	
+	
+</div>
+
+<div class='full-wrap hidden' id='screen-lock'>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+	editor = new TM.EDITOR();
+	console.log(editor);
+},false);
+
+</script>	
+
+	
+</body>
+</html>

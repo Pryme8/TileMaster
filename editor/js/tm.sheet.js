@@ -23,32 +23,41 @@ TM.SHEET.prototype = {
 		var tempCvas = document.createElement('canvas');
 		tempCvas.width = size.width;
 		tempCvas.height = size.height;
-		var tempCtx = tempCvas.getContext('2d');			
+		var tempCtx = tempCvas.getContext('2d');
+		
+		this.animationDat = tempCtx.getImageData(0,0, size.x, size.y);		
 			
+		var i = 0;
 		for(var y=0; y<size.y; y++){
 			for(var x=0; x<size.x; x++){
 				var id = x+":"+y;
 				var dat = animationData[id];
+				var r,g,b;
 				if(dat){
-					var r = dat.type;
-					var g = Math.floor(255*dat.sMul);
-					var b = Math.floor(255*dat.sDiv);
+					r = dat.type;
+					g = Math.floor(255*dat.sMul);
+					b = Math.floor(255*dat.sDiv);
 					if(r==0){
-						tempCtx.fillStyle = 'rgba(255, 255, 255, 0)';
-					}else{
-						tempCtx.fillStyle = 'rgba('+r+', '+g+', '+b+', 1)';
+					r = 0; g = 0; b = 0;
 					}					
 				}else{
-					tempCtx.fillStyle = 'rgba(255, 255, 255, 0)';					
+					r = 0; g = 0; b = 0;				
 				}	
 				
-				tempCtx.fillRect(x, y, 1, 1);
+				this.animationDat.data[i] = r;
+				this.animationDat.data[i+1] = g;
+				this.animationDat.data[i+2] = b;
+				
+				if(r==0&&g==0&&b==0){
+					this.animationDat.data[i+3] = 0;
+				}else{
+					this.animationDat.data[i+3] = 1;
+				}				
+				
+				i+=4;
+				
 			}
-		}
-		
-		this.animationDat = tempCtx.getImageData(0,0,size.x, size.y);
-		
-		
+		}		
 		return this;
 	},	
 	_serialize : function(){
@@ -67,5 +76,9 @@ TM.SHEET.prototype = {
 			a.download = this.name+'.tms';
 			a.href = URL.createObjectURL(file);			
 			a.click();		
+	},
+	_import : function(file){
+		
+		
 	},
 };
