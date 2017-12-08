@@ -52,3 +52,6 @@
 >### **Animation Speeds:**  
 > Speed-Multiplyer - Number between 0.004 and 1, the lower the number the faster the animation.  
 > Speed-Divider - Number between 0.004 and 1, the lower the number the slower the animation.
+----------
+TileMaster © Andrew V. Butt 2017  
+Pryme8.com - Pryme8@gmail.com
