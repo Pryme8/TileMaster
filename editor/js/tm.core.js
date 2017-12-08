@@ -1,6 +1,9 @@
 TM = {
 	_glslBank : {
 	},
+	_startEditor : function(){
+		return new TM.EDITOR();
+	},	
 	_convertImageData : function(data, compressed){
 		var out;
 		if(!compressed){

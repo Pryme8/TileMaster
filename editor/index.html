@@ -2,512 +2,78 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html" charset="utf-8"/>
-    <title>TileMaster - Sheet Prep</title>
-    <link rel="stylesheet" type="text/css" href="./css/main2.css">
-	
-	
+    <title>TileMaster</title>
+    <link rel="stylesheet" type="text/css" href="./css/main.css">	
 	<script src="https://cdn.babylonjs.com/babylon.worker.js"></script>
-
+	<script src="./js/tm.core.js"></script>
+	<script src="./js/tm.project.js"></script>
+	<script src="./js/tm.sheet.js"></script>
+	<script src="./js/tm.editor.js"></script>
+	
 	
 </head>
 <body>
 
-<canvas id="renderCanvas"></canvas>
+	<div class='full-wrap hidden' id='main-editor'>		
+		
+		<div class='drop-menu'>
+			<div class='menu-section'>			
+				<div class='menu-item'>
+				<a href="#">Project</a>
+					<div class='menu-section'>
+						<div class='menu-item'><a href="#">Save/Export</a></div>
+						<div class='menu-item'><a href="#">Load Project</a></div>
+						<div class='menu-item'><a href="#">Settings</a></div>
+					</div>
+				</div>
+				
+				<div class='menu-item'>
+				<a href="#">Stages</a>
+					<div class='menu-section'>
+						<div class='menu-item'><a href="#">Create New Stage</a></div>
+						<div class='menu-item'><a href="#">Import Stage</a></div>
+						<div class='menu-item'><a href="#">Current Stage</a>
+							<div class='menu-section'>
+								<div class='menu-item'><a href="#">Save/Export</a></div>
+								<div class='menu-item'><a href="#">Settings</a></div>
+							</div>
+						</div>
+					</div>
+				</div>				
+			</div>		
+		</div>	
+	
+	</div>
 
-<div class='pane' id='start' name='Select Image'>
-	<center><input type='file' id='in-image'></input></center>
-</div>
+	<div class='pane abs-center active' id='start-menu' name='Start Menu'>
+		<a href='#' class='button' click-act='change-pane' t='new-project'>New Project</a>
+		<a href='#' class='button'>Load Project</a>
+		<a href='#' class='button'>Sheet Editor</a>
+	</div>
+	
+	<div class='pane abs-center' id='new-project' name='New Project Set-Up'>
+		<div class='in'><span>Project-Name</span><input id='project-name'></input></div>
+		<div class='in'><span>Import-Assets</span><input type='file' id='in-assets' multiple accept='.tms' ></input></div>
+		<div class='list' id='asset-import-list' style='max-height:160px;display:none;'></div>
+		<hr>
+		<div class='align-right'>
+		<a href='#' class='button inline' click-act='change-pane' t='start-menu'>Back</a>
+		<a href='#' class='button inline' click-act='confirm-new-project'>Confirm</a>
+		</div>
+	</div>
 
-<div class='pane' id='tools' name='Settings' style='display:none;'>
-	<div class='in'><span>Sheet-Name</span><input id='name'></input></div>
-	<div class='in'><span>Tile-Size</span><input id='size' type='number' value='32' min='1'></input></div>
-	<div class='in'><span>Zoom</span><input id='zoom' value='1' type='number'  min='0.01' max='16'></input></div>
-	<hr>
-	<form>
-		<input type="radio" name="AnimationType" value="0" onchange=updateOutput(this); checked> None<br>
-		<input type="radio" name="AnimationType" value="1" onchange=updateOutput(this);> 1<br>
-		<input type="radio" name="AnimationType" value="2" onchange=updateOutput(this);> 2<br>
-		<input type="radio" name="AnimationType" value="4" onchange=updateOutput(this);> 4<br>
-		<input type="radio" name="AnimationType" value="5" onchange=updateOutput(this);> 5<br>
-		<input type="radio" name="AnimationType" value="8" onchange=updateOutput(this);> 8<br>
-		<input type="radio" name="AnimationType" value="9" onchange=updateOutput(this);> 9<br>
-		<input type="radio" name="AnimationType" value="10" onchange=updateOutput(this);> 10<br>
-	</form>
-	<div class='in'><span>Speed-Multiplyer</span><input id='speed-multiply' value='1' type='number' ></input></div>
-	<div class='in'><span>Speed-Divider</span><input id='speed-divide' value='1' type='number' ></input></div>
-</div>
-
-<div class='pane' id='preview' name='Preview' style='display:none;'>
-	<center><canvas id="previewCanvas"></canvas></center>
-</div>
-
+	
+	
+<div id='version'><a href='http://github.com/Pryme8/TileMaster'>TileMaster v0.0.2 © Andrew V. Butt 2017</a></div>
+</body>
 
 <script>
-
-function buildScene(iDat){
-
- output = {};
-	
-	updateOutput = function(t){
-	var v = parseInt(t.value);
-		output[currentTile.x+":"+currentTile.y].type = v;
-		setAnimationType(v);
-	};
-
-	var canvas = document.getElementById('renderCanvas');
-	var previewCanvas = document.getElementById('previewCanvas');
-	
-	var engine = new BABYLON.Engine(canvas, true);		  
-		var scene = new BABYLON.Scene(engine);
-			scene.clearColor = new BABYLON.Color3(0.8, 0.8, 0.82);
-			var camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 0, -10), scene);
-			camera.setTarget(BABYLON.Vector3.Zero());
-
-	var engineP = new BABYLON.Engine(previewCanvas, true);		  
-		var sceneP = new BABYLON.Scene(engineP);
-			sceneP.clearColor = new BABYLON.Color3(0.8, 0.8, 0.82);
-			var cameraP = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 0, -10), sceneP);
-			cameraP.setTarget(BABYLON.Vector3.Zero());
-			
-
-var _vs =
-`precision highp float;
-// Attributes
-attribute vec3 position;
-attribute vec3 normal;
-attribute vec2 uv;
-// Uniforms
-uniform mat4 worldViewProjection;
-
-uniform vec2 viewOffset;
-uniform vec2 viewportSize;
-uniform vec2 sheetSize;
-
-varying vec3 vPosition;
-varying vec2 vUV;
-varying vec2 pixelCoord;
-
-
-void main() {
-    vec4 p = vec4( position, 1. );    
-	vPosition = p.xyz;
-	
-	gl_Position = worldViewProjection * p;	
-	vUV = uv;
-	vUV.y = 1.0 - vUV.y;
-	
-	pixelCoord = (vUV * viewportSize) + viewOffset;
-	
-}`;
-var _fs =
-`uniform vec2 viewOffset;
-uniform vec2 viewportSize;
-uniform sampler2D sprite;
-uniform vec2 sheetSize;
-uniform vec2 mousePos;
-uniform float tileSize;
-uniform vec2 selectedTile;
-
-varying vec3 vPosition;
-varying vec2 vUV;
-varying vec2 pixelCoord;
-
-void main(){
-	vec2 sCoord = pixelCoord/sheetSize;
-	if(sCoord.x < 0.  || sCoord.x > 1. || sCoord.y < 0.  || sCoord.y > 1. ){discard;}	
-	vec4 cSample = texture2D(sprite, sCoord);	
-	vec3 color = cSample.xyz;
-	float alpha = cSample.a;
-	
-	float tileHS = tileSize*0.5;
-	
-	vec2 tID = floor(pixelCoord/tileSize);
-	vec2 mPos = floor(mousePos/tileSize);
-	
-	vec3 cursorColor = vec3(1.0, 0.5, 1.0);
-	vec3 selectedColor = vec3(0.0, 1.0, 1.0);
-	
-	if(tID == selectedTile){
-			color = mix(color, selectedColor, 0.65);
-			if(alpha == 0.0){alpha = 1.0;}
-	}else{
-		if(tID == mPos){
-			color = mix(color, cursorColor, 0.65);
-			if(alpha == 0.0){alpha = 1.0;}
-		}
-	}
-	
-		
-	if(alpha == 0.){discard;}
-	
-	gl_FragColor =  vec4(color, alpha);
-}
-`;
-	BABYLON.Effect.ShadersStore["editorVertexShader"] = _vs;
-	BABYLON.Effect.ShadersStore["editorFragmentShader"] = _fs;
-
-
-
-
-var _vs2 =
-`precision highp float;
-// Attributes
-attribute vec3 position;
-attribute vec3 normal;
-attribute vec2 uv;
-// Uniforms
-uniform mat4 worldViewProjection;
-
-varying vec3 vPosition;
-varying vec2 vUV;
-
-
-
-void main() {
-    vec4 p = vec4( position, 1. );    
-	vPosition = p.xyz;	
-	gl_Position = worldViewProjection * p;	
-	vUV = uv;
-	vUV.y = 1.0 - vUV.y;
-}`;
-
-var _fs2 =
-`
-uniform sampler2D sprite;
-uniform float tileSize;
-uniform vec2 selectedTile;
-uniform vec2 sheetSize;
-uniform float animationType;
-uniform float time;
-
-varying vec3 vPosition;
-varying vec2 vUV;
-
-void main(){
-	vec3 color = vec3(1.0);
-	float alpha = 1.0;
-	vec2 tMax = sheetSize/tileSize;
-	int _f;
-	vec2 _selectedTile = selectedTile;
-	if(selectedTile.x >= 0.0 && selectedTile.y >= 0.0 && selectedTile.x <= tMax.x && selectedTile.y <= tMax.y){
-		vec2 pUnit = 1.0/tMax;
-		
-		if(animationType == 1.0){
-			_f = int(mod(time, 2.));
-			if(_f == 1){_selectedTile.x+=1.0;}
-		}else if(animationType == 2.){
-			_f = int(mod(time, 2.));
-			if(_f == 1){_selectedTile.y+=1.0;}
-		}else if(animationType == 4.){
-			_f = int(mod(time, 4.));
-				if(_f == 1){_selectedTile.x+=1.0;}
-				if(_f == 2){_selectedTile.x+=2.0;}
-				if(_f == 3){_selectedTile.x+=3.0;}
-		}else if(animationType == 5.){
-			_f = int(mod(time, 6.));
-				if(_f == 1){_selectedTile.x+=1.;}
-				if(_f == 2){_selectedTile.x+=2.;}
-				if(_f == 3){_selectedTile.y+=1.;}
-				if(_f == 4){_selectedTile.x+=1.;_selectedTile.y+=1.;}
-				if(_f == 5){_selectedTile.x+=2.;_selectedTile.y+=1.;}
-		}else if(animationType == 8.){
-			_f = int(mod(time, 6.));
-				if(_f == 1){_selectedTile.x+=1.;}
-				if(_f == 2){_selectedTile.y+=1.;}
-				if(_f == 3){_selectedTile.x+=1.;_selectedTile.y+=1.;}
-				if(_f == 4){_selectedTile.y+=2.;}
-				if(_f == 5){_selectedTile.x+=1.;_selectedTile.y+=2.;}
-		}else if(animationType== 9.){
-			_f = int(mod(time, 8.));
-				if(_f == 1){_selectedTile.x+=1.;}
-				if(_f == 2){_selectedTile.x+=2.;}
-				if(_f == 3){_selectedTile.y+=1.;}
-				if(_f == 4){_selectedTile.x+=1.;_selectedTile.y+=1.;}
-				if(_f == 5){_selectedTile.x+=2.;_selectedTile.y+=1.;}
-				if(_f == 6){_selectedTile.y+=2.;}
-				if(_f == 7){_selectedTile.x+=1.;_selectedTile.y+=2.;}			
-		}else if(animationType== 10.){
-			_f = int(mod(time, 9.));
-				if(_f == 1){_selectedTile.x+=1.;}
-				if(_f == 2){_selectedTile.x+=2.;}
-				if(_f == 3){_selectedTile.y+=1.;}
-				if(_f == 4){_selectedTile.x+=1.;_selectedTile.y+=1.;}
-				if(_f == 5){_selectedTile.x+=2.;_selectedTile.y+=1.;}
-				if(_f == 6){_selectedTile.y+=2.;}
-				if(_f == 7){_selectedTile.x+=1.;_selectedTile.y+=2.;}
-				if(_f == 8){_selectedTile.x+=2.;_selectedTile.y+=2.;}
-		}
-		
-				
-		vec2 offset = pUnit * _selectedTile;		
-		
-		vec4 cSample = texture2D(sprite, offset + (pUnit * vUV));		
-		
-		color = cSample.xyz;
-	}	
-	gl_FragColor =  vec4(color, alpha);
-}
-`;
-
-	BABYLON.Effect.ShadersStore["previewVertexShader"] = _vs2;
-	BABYLON.Effect.ShadersStore["previewFragmentShader"] = _fs2;
-	
-	
-	var texture = new BABYLON.DynamicTexture('sheet', {width:iDat.width, height:iDat.height}, scene, false, 1);
-	var ctx = texture._context;
-	ctx.putImageData(iDat, 0, 0);
-	texture.update(false);
-	
-	var textureP = new BABYLON.DynamicTexture('sheet', {width:iDat.width, height:iDat.height}, sceneP, false, 1);
-	var ctx2 = textureP._context;
-	ctx2.putImageData(iDat, 0, 0);
-	textureP.update(false);
-
-	var defines = [];
-		defines.push('precision highp float;');
-		
-		var shader = new BABYLON.ShaderMaterial("basicShader", scene, {
-			vertex: "editor",
-			fragment: "editor",
-			},{
-			attributes: ["position", "normal", "uv"],
-			defines: defines,
-			samplers: ['sprite'],
-			uniforms: ["world",
-			"worldView", 
-			"worldViewProjection",
-			"view", "viewOffset",
-			"viewportSize", "sheetSize", "mousePos", "selectedTile"]
-			});
-			
-			var defines2 = [];
-		defines2.push('precision highp float;');
-		
-		var shaderP = new BABYLON.ShaderMaterial("previewShader", sceneP, {
-			vertex: "preview",
-			fragment: "preview",
-			},{
-			attributes: ["position", "normal", "uv"],
-			defines: defines2,
-			samplers: ['sprite'],
-			uniforms: ["world",
-			"worldView", 
-			"worldViewProjection",
-			"view", "selectedTile", "sheetSize", "animationType", "time"]
-			});	
-	
-	
-	
-	var offset = new BABYLON.Vector2(0, 0);
-	var zoom = 1.0;
-	var tileSize = 32.0;
-	var currentTile = new BABYLON.Vector2(-1,-1);
-	var time = 0;
-	
-	var radios = document.body.querySelectorAll('input[name="AnimationType"]');
-	console.log(radios);
-	
-	function tileChanged(id){
-		var maxX = texture._texture._width/tileSize;
-		var maxY = texture._texture._height/tileSize;
-		
-		if(id.x >= 0 && id.y >= 0 && id.x < maxX && id.y < maxY){
-			output[id.x+":"+id.y] = output[id.x+":"+id.y] || {type:0};
-			for(var i=0; i<radios.length; i++){
-				var t = output[id.x+":"+id.y].type;
-				if(radios[i].value == t){
-					radios[i].checked = true;
-					setAnimationType(t);
-					return;
-				}else{
-					radios[i].checked = false;
-				}
-			}
-		}
-		
-	}
-	
-	function setAnimationType(t){
-		shaderP.setFloat('animationType', t);
-	}
-	
-	function resizeShader(){
-		shader.setVector2('viewportSize', new BABYLON.Vector2(canvas.width/zoom, canvas.height/zoom));
-		shader.setVector2('viewOffset', offset);
-	}
-	function setMousePos(pos){
-	shader.setVector2('mousePos', pos.divide(new BABYLON.Vector2(zoom, zoom)));
-	}
-	function setTileSize(){
-		output = {};
-		shader.setFloat('tileSize', tileSize);
-		shaderP.setFloat('tileSize', tileSize);
-	}
-	function selectTile(id){
-		shader.setVector2('selectedTile', id);
-		shaderP.setVector2('selectedTile', id);
-		currentTile.x = id.x;
-		currentTile.y = id.y;
-		tileChanged(id);
-	}
-	
-	function setShaderDefaults(){
-		resizeShader();
-		setMousePos(new BABYLON.Vector2(0, 0));
-		selectTile(new BABYLON.Vector2(-1, -1));
-		setTileSize();
-		shader.setTexture('sprite', texture);
-		shaderP.setTexture('sprite', textureP);
-		shader.setVector2('sheetSize', new BABYLON.Vector2(texture._texture._width, texture._texture._height));
-		shaderP.setVector2('sheetSize', new BABYLON.Vector2(texture._texture._width, texture._texture._height));
-		shaderP.setFloat('animationType', 0);
-	}	
-	
-	
-			setShaderDefaults();
-			console.log(shader, shaderP);
-			
-	var mesh;
-	var pMesh;
-	
-	function buildMesh(){
-		if(mesh){mesh.dispose();}
-		var c = scene.activeCamera;
-		var fov = c.fov;
-		var aspectRatio = engine.getAspectRatio(c);
-		var d = c.position.length();
-		var y = 2 * d * Math.tan(fov / 2);
-		var x = y * aspectRatio;		
-		mesh = BABYLON.MeshBuilder.CreatePlane("output-plane", {width: x, height:y}, scene);
-		mesh.material = shader;
-	};
-	function buildMesh2(){
-		if(pMesh){pMesh.dispose();}
-		var c = sceneP.activeCamera;
-		var fov = c.fov;
-		var aspectRatio = engineP.getAspectRatio(c);
-		var d = c.position.length();
-		var y = 2 * d * Math.tan(fov / 2);
-		var x = y * aspectRatio;		
-		pMesh = BABYLON.MeshBuilder.CreatePlane("output-plane", {width: x, height:y}, sceneP);
-		pMesh.material = shaderP;
-	};
-	
-	
-	
-	var zoomIn = document.getElementById('zoom');
-	var sizeIn = document.getElementById('size');
-	
-	
-	var keys = {};
-	
-	document.body.addEventListener('keydown', function(e){
-		keys[e.code] = true;
-		console.log(e.code);
-	}, false);
-	
-	document.body.addEventListener('keyup', function(e){
-		keys[e.code] = false;
-	}, false);
-	
-	
-	document.body.addEventListener('mousemove', function(e){
-			var pos = new BABYLON.Vector2(e.clientX, e.clientY);	
-			setMousePos(pos.add(offset.scale(zoom)));
-	}, false);
-	
-	canvas.addEventListener('click', function(e){
-			var pos = new BABYLON.Vector2(e.clientX, e.clientY);	
-			var id = pos.add(offset.scale(zoom));
-			var size = tileSize*zoom;
-			id.x = Math.floor(id.x/size);
-			id.y = Math.floor(id.y/size);
-			selectTile(id);			
-	}, false);
-	
-	
-	
-	window.addEventListener("resize", function () {
-		engine.resize();
-		resizeShader();
-		buildMesh();
-	}); 
-	
-	zoomIn.addEventListener('change', function(e){
-			zoom = e.target.value;
-			resizeShader();
-	}, false);
-	
-	sizeIn.addEventListener('change', function(e){
-			tileSize = e.target.value;
-			setTileSize();
-	}, false);
-	
-	scene.registerBeforeRender(()=>{
-	 time += 0.01;
-	 shaderP.setFloat('time', time);
-	 if(keys['ArrowLeft']){offset.x+=1;}
-	 if(keys['ArrowRight']){offset.x-=1;}
-	 if(keys['ArrowUp']){offset.y+=1;}
-	 if(keys['ArrowDown']){offset.y-=1;}
-	 
-	});
-	
-	
-	engine.runRenderLoop(function () {
-			scene.render();
-	});
-	
-	engineP.runRenderLoop(function () {
-			sceneP.render();
-	});
-	
-	
-	buildMesh();
-	buildMesh2();
-};
-
-
 document.addEventListener("DOMContentLoaded", () => {
-	var input = document.getElementById('in-image');
-	var start = document.getElementById('start');
-	var tools = document.getElementById('tools');
-	var name = document.getElementById('name');
-	var preview = document.getElementById('preview');
-	
-	input.addEventListener("change", (e)=>{
-		var file = input.files[0];
-		var fr = new FileReader();
-		var img = new Image();
-		var cvas = document.createElement('canvas');
-		
-		img.onload =(e)=>{
-			console.log(e.target);
-			cvas.width = e.target.width;
-			cvas.height = e.target.height;
-			var ctx = cvas.getContext('2d');
-			ctx.drawImage(img,0,0);
-			var iDat = ctx.getImageData(0,0,cvas.width, cvas.height);
-			start.style = "display:none;";
-			tools.style = "";
-			preview.style = "";
-			name.value = file.name;
-			buildScene(iDat);
-		} 
-		
-		fr.onload =(e)=>{
-			console.log(e);
-			img.src = fr.result;
-		}  // onload fires after reading is complete
-			
-		
-		fr.readAsDataURL(file);		
-	}, false);
-
+	editor = TM._startEditor();
+	console.log(editor);
 },false);
 
-</script>	
+</script>
 
-	
-</body>
+
 </html>
