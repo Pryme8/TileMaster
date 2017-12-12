@@ -13,9 +13,10 @@
 	
 </head>
 <body>
+<canvas id="hiddenCanvas" style='display:none;'></canvas>
 
-	<div class='full-wrap hidden' id='main-editor'>		
-		
+
+	<div class='full-wrap' id='main-editor'>		
 		<div class='drop-menu'>
 			<div class='menu-section'>			
 				<div class='menu-item'>
@@ -26,7 +27,7 @@
 						<div class='menu-item'><a href="#">Settings</a></div>
 					</div>
 				</div>
-				
+				&nbsp;|&nbsp;
 				<div class='menu-item'>
 				<a href="#">Stages</a>
 					<div class='menu-section'>
@@ -39,16 +40,113 @@
 							</div>
 						</div>
 					</div>
+				</div>
+				&nbsp;|&nbsp;
+				<div class='menu-item'>
+				<a href="#">Assets</a>
+					<div class='menu-section'>
+						<div class='menu-item'><a href="#">Sheets</a></div>
+						<div class='menu-item'><a href="#">Sprites</a></div>
+						<div class='menu-item'><a href="#">Graphics</a></div>
+					</div>
+				</div>
+				&nbsp;|&nbsp;
+				<div class='menu-item'>
+				<a href="#">Views</a>
+					<div class='menu-section'>
+						<div class='menu-item'><a href="#">Sheet Editor</a></div>
+						<div class='menu-item'><a href="#">Sprite Editor</a></div>
+					</div>
+				</div>				
+				&nbsp;|&nbsp;
+				<div class='menu-item'>
+				<a href="#">About</a>
+					<div class='menu-section'>
+						<div class='menu-item'><a href="#">Credits</a></div>
+						<div class='menu-item'><a href="#">Wiki</a></div>
+					</div>
+				</div>
+				
+			</div>		
+		</div>		
+	</div>
+	
+	<div class='full-wrap' id='sheet-editor'>
+		<div class='drop-menu'>
+			<div class='menu-section'>			
+				<div class='menu-item'>
+				<a href="#">Sheet</a>
+					<div class='menu-section'>
+						<div class='menu-item'><a href="#">Reset/New</a></div>
+						<div class='menu-item'><a href="#">Save/Export</a></div>
+						<div class='menu-item'><a href="#">Load</a></div>
+						<div class='menu-item'><a href="#">Settings</a></div>						
+					</div>
+				</div>
+				&nbsp;|&nbsp;
+				<div class='menu-item'>
+				<a href="#">Views</a>
+					<div class='menu-section'>
+						<div class='menu-item'><a href="#">Main Editor</a></div>
+						<div class='menu-item'><a href="#">Sprite Editor</a></div>
+					</div>
+				</div>	
+				&nbsp;|&nbsp;
+				<div class='menu-item'>
+				<a href="#">About</a>
+					<div class='menu-section'>
+						<div class='menu-item'><a href="#">Credits</a></div>
+						<div class='menu-item'><a href="#">Wiki</a></div>
+					</div>
 				</div>				
 			</div>		
-		</div>	
-	
+		</div>		
+		<canvas id="sheetEditCanvas"></canvas>
+		
+			<div class='pane abs-center active' id='start-new-sheet' name='Select Image'>
+				<center><input type='file' id='in-sheet-image'></input></center>
+				<hr>
+				<a href='#' class='button' click-act='restart'>Cancel</a>
+			</div>	
+			
+			<div class='pane' id='sheet-tools' name='Settings'>			
+			<div class='in'><span>Sheet-Name</span><input id='name'></input></div>
+			<div class='in'><span>Tile-Size</span><input id='size' type='number' value='32' min='1'></input></div>
+			<div class='in'><span>Zoom</span><input id='zoom' value='1' type='number'  min='0.01' max='16'></input></div>
+			<hr>
+			<form>
+				<input type="radio" name="AnimationType" value="0" onchange=updateOutput(this); checked> None<br>
+				<input type="radio" name="AnimationType" value="1" onchange=updateOutput(this);> 1<br>
+				<input type="radio" name="AnimationType" value="2" onchange=updateOutput(this);> 2<br>
+				<input type="radio" name="AnimationType" value="4" onchange=updateOutput(this);> 4<br>
+				<input type="radio" name="AnimationType" value="5" onchange=updateOutput(this);> 5<br>
+				<input type="radio" name="AnimationType" value="8" onchange=updateOutput(this);> 8<br>
+				<input type="radio" name="AnimationType" value="9" onchange=updateOutput(this);> 9<br>
+				<input type="radio" name="AnimationType" value="10" onchange=updateOutput(this);> 10<br>
+				<input type="radio" name="AnimationType" value="11" onchange=updateOutput(this);> 11<br>
+			</form>
+			<div class='in'><span>Speed-Multiplyer</span><input id='speed-multiply' value='1' max='1' min='0.001' type='number' onchange=updateOutputSpeed(this);></input></div>
+			<div class='in'><span>Speed-Divider</span><input id='speed-divide' value='1' max='1' min='0.001' type='number' onchange=updateOutputSpeed(this);></input></div>
+		<a href='#' class='button' onclick=compile();>SAVE/EXPORT</a>
 	</div>
+
+	<div class='pane' id='sheet-preview' name='Preview'>
+		<center><canvas id="sheetPreviewCanvas"></canvas></center>
+	</div>
+		
+		
+		
+	</div>
+	
+	
+	
+	
+	
 
 	<div class='pane abs-center active' id='start-menu' name='Start Menu'>
 		<a href='#' class='button' click-act='change-pane' t='new-project'>New Project</a>
 		<a href='#' class='button'>Load Project</a>
-		<a href='#' class='button'>Sheet Editor</a>
+		<a href='#' class='button' click-act='change-pane' t='sheet-editor'>Sheet Editor</a>
 	</div>
 	
 	<div class='pane abs-center' id='new-project' name='New Project Set-Up'>

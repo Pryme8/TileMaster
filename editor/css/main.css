@@ -30,7 +30,7 @@ box-sizing: border-box;
 top:0;left:0;right:0;
 bottom:18px;
 position:absolute;
-display:block;
+display:none;
 }
 
 .hidden{display:none;}
@@ -60,7 +60,7 @@ display:block;
 	padding:0.5em;
 }
 
-.pane.active{
+.pane.active, .full-wrap.active{
 	display:block;
 }
 
@@ -139,9 +139,24 @@ display:block;
 	overflow:auto;
 }
 
+.drop-menu{
+    background: #261E40;
+    color: darkgray;
+    line-height: 1.5em;
+	padding-left:0.5em;
+	font-size:0.65em;
+}
+
 .drop-menu a{
 	text-decoration:none;
 	color:white;
+	padding:0.5em;
+	display:block;
+}
+
+.drop-menu a:hover{
+	color:lightgray;
+	background:rgba(255,255,255,0.2);
 }
 
 .drop-menu .menu-section .menu-section {
@@ -149,25 +164,33 @@ display:block;
 	margin:0;
 }
 
-.drop-menu .menu-section .menu-item:hover > .menu-section{
-	display: block;
-}
-
-.drop-menu > .menu-section > .menu-item{
-	position: relative;
-	display: inline;
-}
-
-
-
 .drop-menu .menu-section{
 	position: relative;
-	display: inline-table;
+	display: block;	
 }
 
-.drop-menu .menu-section:after {
-		content: ""; clear: both; display: block;
+.drop-menu .menu-section > .menu-item{
+	display:inline-block;
+
 }
+
+.drop-menu .menu-section .menu-item:hover > .menu-section {
+	display:block;
+	position:absolute;
+	background:rgb(74,57,122);
+	
+}
+
+.drop-menu .menu-section .menu-item:hover > .menu-section > .menu-item{
+	display:block;
+}
+
+.drop-menu .menu-section .menu-section .menu-section{
+		position:absolute;
+		transform:translate(0, -2.5em);
+		left:100%;
+}
+
 
 
 	
