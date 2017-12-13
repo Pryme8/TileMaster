@@ -214,7 +214,15 @@ void main(){
 			delete ctx;
 		}
 		return out;
-	}
+	},
+	blankTexture : function(size, scene){
+		var texture = new BABYLON.DynamicTexture('sheet', {width:size.width, height:size.height}, scene, false, 1);
+		var ctx = texture._context;
+		ctx.fillStyle = '#000';
+		ctx.fillRect(0,0,size.width, size.height);
+		texture.update(false);
+		return texture;
+	},
 };
 
 

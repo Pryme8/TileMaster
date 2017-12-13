@@ -58,6 +58,7 @@ display:none;
 	overflow:hidden;
 	background:rgb(200,220,240);	
 	padding:0.5em;
+	z-index:100;
 }
 
 .pane.active, .full-wrap.active{
@@ -145,6 +146,7 @@ display:none;
     line-height: 1.5em;
 	padding-left:0.5em;
 	font-size:0.65em;
+	z-index:1000000;
 }
 
 .drop-menu a{
@@ -167,6 +169,7 @@ display:none;
 .drop-menu .menu-section{
 	position: relative;
 	display: block;	
+	z-index:1001;
 }
 
 .drop-menu .menu-section > .menu-item{
@@ -192,6 +195,23 @@ display:none;
 }
 
 
+.output-canvas{
+width : 100%;
+height : calc(100% - 1.5em);
+touch-action: none;
+position:absolute;
+display:block;
+top:1.5em;
+z-index:10;
+}
+.output-canvas:focus { outline: none; }
+
+#sheet-tools{
+	right:0;
+}
+#sheetPreviewCanvas{
+	width:64px; height:64px;
+}
 
 	
 
