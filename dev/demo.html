@@ -372,7 +372,7 @@ this._overlayCount = 0;
 
 var self = this;
 	this._tiles = new BABYLON.Texture(url, this.scene, true, false, 1, ()=>{			
-			self.inverseTextureSize = new BABYLON.Vector2(1/self._tiles.texture._width, 1/self._tiles._texture.height);
+			self.inverseTextureSize = new BABYLON.Vector2(1/self._tiles._texture.width, 1/self._tiles._texture.height);
 			console.log("inverseTextureSize", self.inverseTextureSize);
 			self._setShader();
 			self.parent._tasks--;
