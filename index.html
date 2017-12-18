@@ -174,7 +174,7 @@ gl_FragColor =  texture2D(sprites, (spriteOffset + spriteCoord) * inverseSpriteT
 	setAtlas : function(url){
 	var self = this;
 		this._atlas = new BABYLON.Texture(url, this.scene, true, false, 1, ()=>{
-			self.inverseSpriteTextureSize = new BABYLON.Vector2(1/self._atlas._texture._width, 1/self._atlas._texture._height);
+			self.inverseSpriteTextureSize = new BABYLON.Vector2(1/self._atlas._texture.width, 1/self._atlas._texture.height);
 			console.log("inverseSpriteTextureSize", self.inverseSpriteTextureSize);
 		});
 	},
@@ -211,7 +211,7 @@ this._atlasSet = false;
 this._tilesSet = false;
 var self = this;
 	this._tiles = new BABYLON.Texture(url, this.scene, true, true, 1, ()=>{			
-			self.inverseTextureSize = new BABYLON.Vector2(1/self._tiles._texture._width, 1/self._tiles._texture._height);
+			self.inverseTextureSize = new BABYLON.Vector2(1/self._tiles._texture.width, 1/self._tiles._texture.height);
 			console.log("inverseTextureSize", self.inverseTextureSize);
 			self._setShader();
 			self.parent._tasks--;
