@@ -113,23 +113,23 @@
 			<div class='pane' id='sheet-tools' name='Settings'>
 			<center><canvas id="sheetPreviewCanvas"></canvas></center><hr>		
 			<div class='in'><span>Sheet-Name</span><input id='sheet-name'></input></div>
-			<div class='in'><span>Tile-Size</span><input id='sheet-tile-size' type='number' value='32' min='1'></input></div>
-			<div class='in'><span>Zoom</span><input id='sheet-editor-zoom' value='1' type='number'  min='0.01' max='16'></input></div>
+			<div class='in'><span>Tile-Size</span><input id='sheet-tile-size' type='number' value='32' min='1' change-act='change-sheet-editor-tile-size'></input></div>
+			<div class='in'><span>Zoom</span><input id='sheet-editor-zoom' value='1' type='number'  min='0.01' max='16' change-act='change-sheet-editor-zoom'></input></div>
 			<hr>
 			<form>
-				<input type="radio" name="sheet-AnimationType" value="0" onchange=updateOutput(this); checked> None<br>
-				<input type="radio" name="sheet-AnimationType" value="1" onchange=updateOutput(this);> 1<br>
-				<input type="radio" name="sheet-AnimationType" value="2" onchange=updateOutput(this);> 2<br>
-				<input type="radio" name="sheet-AnimationType" value="4" onchange=updateOutput(this);> 4<br>
-				<input type="radio" name="sheet-AnimationType" value="5" onchange=updateOutput(this);> 5<br>
-				<input type="radio" name="sheet-AnimationType" value="8" onchange=updateOutput(this);> 8<br>
-				<input type="radio" name="sheet-AnimationType" value="9" onchange=updateOutput(this);> 9<br>
-				<input type="radio" name="sheet-AnimationType" value="10" onchange=updateOutput(this);> 10<br>
-				<input type="radio" name="sheet-AnimationType" value="11" onchange=updateOutput(this);> 11<br>
+				<input type="radio" name="sheet-AnimationType" value="0" checked change-act='update-animation-output-type'> None<br>
+				<input type="radio" name="sheet-AnimationType" value="1" change-act='update-animation-output-type'> 1<br>
+				<input type="radio" name="sheet-AnimationType" value="2" change-act='update-animation-output-type'> 2<br>
+				<input type="radio" name="sheet-AnimationType" value="4" change-act='update-animation-output-type'> 4<br>
+				<input type="radio" name="sheet-AnimationType" value="5" change-act='update-animation-output-type'> 5<br>
+				<input type="radio" name="sheet-AnimationType" value="8" change-act='update-animation-output-type'> 8<br>
+				<input type="radio" name="sheet-AnimationType" value="9" change-act='update-animation-output-type'> 9<br>
+				<input type="radio" name="sheet-AnimationType" value="10" change-act='update-animation-output-type'> 10<br>
+				<input type="radio" name="sheet-AnimationType" value="11" change-act='update-animation-output-type'> 11<br>
 			</form>
-			<div class='in'><span>Speed-Multiplyer</span><input id='tile-speed-multiply' value='1' max='1' min='0.001' type='number' onchange=updateOutputSpeed(this);></input></div>
-			<div class='in'><span>Speed-Divider</span><input id='tile-speed-divide' value='1' max='1' min='0.001' type='number' onchange=updateOutputSpeed(this);></input></div>
-		<a href='#' class='button' onclick=compile();>SAVE/EXPORT</a>
+			<div class='in'><span>Speed-Multiplyer</span><input id='tile-speed-multiply' value='1' max='1' min='0.001' type='number' change-act='update-animation-output-speed'></input></div>
+			<div class='in'><span>Speed-Divider</span><input id='tile-speed-divide' value='1' max='1' min='0.001' type='number' change-act='update-animation-output-speed'></input></div>
+		<a href='#' class='button' click-act='compile-sheet'>SAVE/EXPORT</a>
 	</div>
 	
 	</div>

@@ -84,8 +84,13 @@ TM.EDITOR = function(){
 			_loadNewImage : (file)=>{
 				
 				var self = this._editors.sheet;
+				var fileName = file.name.split('.');
+				var fileType = fileName[fileName.length-1];
+				fileName = fileName[0];
 				
 				function apply(){
+					self.inputs.name.value = fileName;
+					
 					var texture = new BABYLON.DynamicTexture('sheet', {width:self.iDat.width, height:self.iDat.height}, self.scene, false, 1);
 					var ctx = texture._context;
 					ctx.putImageData(self.iDat, 0, 0);
@@ -103,10 +108,8 @@ TM.EDITOR = function(){
 					
 					self.engine.resize();
 					self.pEngine.resize();
-				}				
+				}					
 				
-				var fileName = file.name.split('.');
-				var fileType = fileName[fileName.length-1];
 				
 				if(
 				fileType != "tms" && 
@@ -132,12 +135,6 @@ TM.EDITOR = function(){
 						var ctx = cvas.getContext('2d');
 						ctx.drawImage(img,0,0);
 						var iDat = ctx.getImageData(0,0,cvas.width, cvas.height);
-						/*
-						start.style = "display:none;";
-						tools.style = "";
-						preview.style = "";
-						name.value = file.name;
-						buildScene(iDat);*/
 						delete cvas;
 						self.iDat = iDat;
 						apply();
@@ -145,35 +142,50 @@ TM.EDITOR = function(){
 					fr.onload =(e)=>{
 						img.src = fr.result;
 					}				
-				}
-				
-				
-		
+				}		
 				fr.readAsDataURL(file);					
+			},
+			_setAnimationType: (t)=>{
+				var self = this._editors.sheet;
+				self.pShader.setFloat('animationType', t);
+			},
+			_setAnimationSpeeds : (m,d)=>{
+				var self = this._editors.sheet;
+				self.pShader.setFloat('animationSpeedMul', m);
+				self.pShader.setFloat('animationSpeedDiv', d);
 			},				
 			_setMousePos : (pos)=>{
 				var self = this._editors.sheet;
 				self.mainShader.setVector2('mousePos', pos.divide(new BABYLON.Vector2(self.zoom, self.zoom)));		
 			},
-			_resizeShader : ()=>{
+			_setZoom: ()=>{
+				var self = this._editors.sheet;
+				self.zoom = parseFloat(self.inputs.zoom.value,10);	
+				self._resizeShader(true);
+			},
+			_resizeShader : (skipMesh)=>{
 				var self = this._editors.sheet;
 				self.mainShader.setVector2('viewportSize', new BABYLON.Vector2(self.canvas.width/self.zoom, self.canvas.height/self.zoom));
 				self.mainShader.setVector2('viewOffset', self.offset);
-				self._buildMesh();
+				if(!skipMesh){self._buildMesh()};
 			},
 			_tileChanged : (id)=>{
 				var self = this._editors.sheet;
+				if(self.texture){				
 				var maxX = self.texture._texture.width/self.tileSize;
 				var maxY = self.texture._texture.height/self.tileSize;
 		
 				if(id.x >= 0 && id.y >= 0 && id.x < maxX && id.y < maxY){
 			
 					self.output[id.x+":"+id.y] = self.output[id.x+":"+id.y] || {type:0, sMul:1, sDiv:1};
+					self.currentTile.x = id.x;
+					self.currentTile.y = id.y;
+					
 					for(var i=0; i<self.inputs.radios.length; i++){
 						var t = self.output[id.x+":"+id.y].type;
 						if(self.inputs.radios[i].value == t){
 							self.inputs.radios[i].checked = true;
-							//setAnimationType(t);					
+							self._setAnimationType(t);					
 							i=self.inputs.radios.length;
 						}else{
 							self.inputs.radios[i].checked = false;
@@ -181,16 +193,21 @@ TM.EDITOR = function(){
 				}
 				var m = self.output[id.x+":"+id.y].sMul;
 				var d = self.output[id.x+":"+id.y].sDiv;
-				speedMul.value = m;
-				speedDiv.value = d;
-				//setAnimationSpeeds(m,d);
+				self.inputs.speedMul.value = m;
+				self.inputs.speedDiv.value = d;
+				self._setAnimationSpeeds(m,d);
+				}else{
+					self.currentTile.x = -1;
+					self.currentTile.y = -1;
+				
+				}
 				}
 			},			
 			_selectTile: (id)=>{
 				var self = this._editors.sheet;
 				self.mainShader.setVector2('selectedTile', id);
 				self.pShader.setVector2('selectedTile', id);
-				//tileChanged(id);
+				self._tileChanged(id);				
 				
 			},
 			_setTileSize:()=>{
@@ -320,10 +337,7 @@ TM.EDITOR.prototype = {
 			id.x = Math.floor(id.x/size);
 			id.y = Math.floor(id.y/size);
 			sheetEdit._selectTile(id);			
-		}, false);
-		
-		
-		
+		}, false);	
 		
 		/*---- RESIZE STUFF ----*/
 		window.addEventListener("resize", function () {				
@@ -375,11 +389,13 @@ TM.EDITOR.prototype = {
 		});
 		
 		engine.runRenderLoop(function () {
-			if(editor._active){	scene.render();}
+			if(editor._active){	scene.render(); pScene.render(); core._delta+=0.01;
+				if(editor.pShader){
+					editor.pShader.setFloat('time', core._delta);
+				}
+			}			
 		});
-		pEngine.runRenderLoop(function () {
-			if(editor._active){	pScene.render();}
-		});
+
 			
 	}
 };
@@ -455,6 +471,33 @@ TM.EDITOR.ACTS = {
 		var file = e.target.files[0];
 		var editor = parent._editors.sheet;
 		editor._loadNewImage(file);
+	},
+	'change-sheet-editor-zoom' : function(e, parent){
+		parent._editors.sheet._setZoom();
+	},
+	'change-sheet-editor-tile-size' : function(e, parent){
+		parent._editors.sheet.tileSize = parseInt(e.target.value);
+		parent._editors.sheet._setTileSize();
+	},
+	'update-animation-output-type' : function(e, parent){
+		var v = parseInt(e.target.value);
+		var output = parent._editors.sheet.output;
+		var currentTile = parent._editors.sheet.currentTile;
+		output[currentTile.x+":"+currentTile.y].type = v;
+		parent._editors.sheet._setAnimationType(v);
+	},
+	'update-animation-output-speed': function(e, parent){
+		var v = parseFloat(e.target.value, 10);
+		var output = parent._editors.sheet.output;
+		var currentTile = parent._editors.sheet.currentTile;
+		if(e.target.getAttribute('id')=='tile-speed-multiply'){
+		output[currentTile.x+":"+currentTile.y].sMul = v;
+		}else{
+		output[currentTile.x+":"+currentTile.y].sDiv = v;
+		}
+			var m = output[currentTile.x+":"+currentTile.y].sMul;
+			var d = output[currentTile.x+":"+currentTile.y].sDiv;
+			parent._editors.sheet._setAnimationSpeeds(m,d);
 	},
 };
 
