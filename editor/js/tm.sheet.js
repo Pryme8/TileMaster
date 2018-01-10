@@ -1,8 +1,8 @@
 TM = TM || {};
 
 TM.SHEET = function(args, parent){
-	this.args = args;
-	this.parent = parent;
+	this.args = args || {};
+	this.parent = parent || null;
 	this.name = 'blank-sheet';
 	this.iDat = null;
 	this.texture = null;
@@ -14,8 +14,8 @@ TM.SHEET = function(args, parent){
 
 TM.SHEET.prototype = {
 	_buildFromEditor : function(animationData){
-		this.name = (document.getElementById('name')).value;
-		this.tileSize = parseInt((document.getElementById('size')).value);
+		this.name = (document.getElementById('sheet-name')).value;
+		this.tileSize = parseInt((document.getElementById('sheet-tile-size')).value);
 		var hc = document.getElementById('hiddenCanvas');
 		this.iDat = (hc.getContext('2d')).getImageData(0,0,hc.width, hc.height);
 		var size = {x:Math.floor(hc.width/this.tileSize), y:Math.floor(hc.height/this.tileSize)};
@@ -65,8 +65,7 @@ TM.SHEET.prototype = {
 		out.name = this.name;
 		out.tileSize = this.tileSize;
 		out.iDat = TM._convertImageData(this.iDat, false);
-		out.animationDat = TM._convertImageData(this.animationDat, false);
-		
+		out.animationDat = TM._convertImageData(this.animationDat, false);		
 		return out;		
 	},
 	_export : function(data){		

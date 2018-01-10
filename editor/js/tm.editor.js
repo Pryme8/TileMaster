@@ -3,7 +3,10 @@ TM = TM || {};
 TM.EDITOR = function(){
 	this._tasks = [];
 	this._delta = 0;
+	this._startedOn = (new Date).getTime();
 	this._keys = {};
+	
+	
 	this._editors = {
 		main : {
 			_active : false,
@@ -11,7 +14,17 @@ TM.EDITOR = function(){
 			_activeProject : null,
 			_activeStage : null,
 			_activePlane : null,
-			_activeLayer : null
+			_activeLayer : null,
+			assets : {
+				sheets : {},
+				sprites: {},
+				graphics : {}				
+			},
+			engine : null,
+			scene : null,
+			canvas : document.getElementById('mainEditCanvas'),
+			
+			
 		},
 		sheet : {
 			_active : false,
@@ -77,19 +90,22 @@ TM.EDITOR = function(){
 				});
 				
 				self.mainShader = shader;
-				self.pShader = pShader;
-				
+				self.pShader = pShader;				
 				self._setShaderDefaults();
 			},
 			_loadNewImage : (file)=>{
+				var self = this._editors.sheet;									
 				
-				var self = this._editors.sheet;
 				var fileName = file.name.split('.');
 				var fileType = fileName[fileName.length-1];
-				fileName = fileName[0];
-				
+				fileName = fileName[0];				
 				function apply(){
-					self.inputs.name.value = fileName;
+					self.inputs.name.value = fileName;					
+					var hiddenCanvas = document.getElementById('hiddenCanvas');
+					hiddenCanvas.width = self.iDat.width;
+					hiddenCanvas.height = self.iDat.height;
+					var hctx = hiddenCanvas.getContext('2d');
+					hctx.putImageData(self.iDat, 0,0);
 					
 					var texture = new BABYLON.DynamicTexture('sheet', {width:self.iDat.width, height:self.iDat.height}, self.scene, false, 1);
 					var ctx = texture._context;
@@ -108,9 +124,7 @@ TM.EDITOR = function(){
 					
 					self.engine.resize();
 					self.pEngine.resize();
-				}					
-				
-				
+				}				
 				if(
 				fileType != "tms" && 
 				fileType != "png" &&
@@ -273,18 +287,21 @@ TM.EDITOR = function(){
 				mesh = BABYLON.MeshBuilder.CreatePlane("output-plane", {width: x, height:y}, self.pScene);
 				mesh.material = self.pShader;
 				self.previewMesh = mesh;
-			}			
-				
-		}
-		
+			}				
+		}		
 	};
 
+	
 
 	this._init();
 	return this;
 }
 
 TM.EDITOR.prototype = {
+	_deltaCalc : function(){
+		var now = (new Date).getTime();
+		this._delta = this._startedOn - now;
+	},
 	_init : function(){
 		this._startSheetEditor();
 	
@@ -389,7 +406,8 @@ TM.EDITOR.prototype = {
 		});
 		
 		engine.runRenderLoop(function () {
-			if(editor._active){	scene.render(); pScene.render(); core._delta+=0.01;
+			if(editor._active){	scene.render(); pScene.render(); 
+				core._deltaCalc();			
 				if(editor.pShader){
 					editor.pShader.setFloat('time', core._delta);
 				}
@@ -404,7 +422,8 @@ TM.EDITOR.prototype = {
 TM.EDITOR.ACTS = {
 	'change-pane' : function(e, parent){
 		var el = e.target;
-		var t = el.getAttribute('t');
+		var t = el.getAttribute('act-value');
+		console.log("change-pane:", t);
 		TM.EDITOR.ACTS['close-pane'](e);
 		TM.EDITOR.ACTS['open-pane'](t);
 	},
@@ -421,11 +440,12 @@ TM.EDITOR.ACTS = {
 	},
 	'open-pane' : function(t){
 		var t = document.getElementById(t);
+		console.log("open-pane:", t);
 		if(t){t.classList.add('active')};		
 	},
 	'open-pane-element' : function(e, parent){
 		var t = e.target;
-		t = t.getAttribute('t');
+		t = t.getAttribute('act-value');
 		t = document.getElementById(t);
 		if(t){t.classList.add('active')};		
 	},
@@ -443,8 +463,6 @@ TM.EDITOR.ACTS = {
 		(document.getElementById('sheet-editor')).classList.remove('active');
 		parent._editors.sheet.inputs.tools.classList.remove('active');
 
-		
-		
 		if(parent._editors.main._activeProject){
 			TM.EDITOR.ACTS['open-pane']('main-editor');	
 		}else{
@@ -462,6 +480,10 @@ TM.EDITOR.ACTS = {
 		
 		parent._editors.sheet.engine.resize();
 		parent._editors.sheet._resizeShader();
+	},
+	'start-import-sheet-into-project' : function(e, parent){
+		var input = document.getElementById('hidden-sheet-input');
+		input.click();
 	},
 	
 	/*----- CHANGE ACTS -----*/
@@ -499,6 +521,12 @@ TM.EDITOR.ACTS = {
 			var d = output[currentTile.x+":"+currentTile.y].sDiv;
 			parent._editors.sheet._setAnimationSpeeds(m,d);
 	},
+	'compile-sheet' : function(e, parent){		
+		var editor = parent._editors.sheet;
+		var sheet = new TM.SHEET();
+		sheet._buildFromEditor(editor.output);
+		console.log(sheet);
+	}
 };
 
 

@@ -75,12 +75,35 @@ display:none;
 	margin-top:-0.5em;
 	margin-left:-0.5em;
 	margin-right:-0.5em;
+	padding:0.2em 0.65em;
+	line-height:1.1em;
+	background:#4D3B7F;
+	color:white;
+	text-shadow:1px 1px #261E40, -1px -1px #261E40, 1px -1px #261E40, -1px 1px #261E40, 0 1px #261E40, 1px 0 #261E40, 0 -1px #261E40, -1px 0 #261E40;
+}
+
+.sub-pane{
+	display:block;
+	position:relative;
+	margin:-1px;
+}
+
+.sub-pane::before{
+	position:relative;
+	display:block;
+	height:1.5em;
+	content:attr(name);
+	border-bottom:1px solid #261E40;
+	margin-bottom:-1px;
+	margin-top:-0.5em;
+	
 	padding:0.2em 0.5em;
 	line-height:1.1em;
 	background:#4D3B7F;
 	color:white;
 	text-shadow:1px 1px #261E40, -1px -1px #261E40, 1px -1px #261E40, -1px 1px #261E40, 0 1px #261E40, 1px 0 #261E40, 0 -1px #261E40, -1px 0 #261E40;
 }
+
 
 .button{
 	letter-spacing:0.06em;
@@ -194,7 +217,6 @@ display:none;
 		left:100%;
 }
 
-
 .output-canvas{
 width : 100%;
 height : calc(100% - 1.5em);
@@ -213,7 +235,12 @@ z-index:10;
 	width:64px; height:64px;
 }
 
-	
+#main-editor-tools{
+	width:220px;
+	right:0px;
+	top:1.5em;
+	height:calc(100% - 1.5em);
+}	
 
 
 #version{
@@ -237,5 +264,13 @@ z-index:10;
 	color:#7359BF;
 	cursor:pointer;
 }
+
+.smaller-font{
+	font-size:0.675em;
+}
+.no-padding{
+	padding:0;
+}
+
 
 

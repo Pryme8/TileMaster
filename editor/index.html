@@ -45,7 +45,7 @@
 				<div class='menu-item'>
 				<a href="#">Assets</a>
 					<div class='menu-section'>
-						<div class='menu-item'><a href="#">Sheets</a></div>
+						<div class='menu-item'><a href="#" click-act='open-pane-element' act-value='sheet-management'>Sheets</a></div>
 						<div class='menu-item'><a href="#">Sprites</a></div>
 						<div class='menu-item'><a href="#">Graphics</a></div>
 					</div>
@@ -62,13 +62,50 @@
 				<div class='menu-item'>
 				<a href="#">About</a>
 					<div class='menu-section'>
-						<div class='menu-item'><a href="#" click-act='open-pane-element' t='credits'>Credits</a></div>
-						<div class='menu-item'><a href="#">Wiki</a></div>
+						<div class='menu-item'><a href="#" click-act='open-pane-element' act-value='credits'>Credits</a></div>
+						<div class='menu-item'><a href="http://github.com/Pryme8/TileMaster" target="_blank">gitHub</a></div>
 					</div>
 				</div>
 				
 			</div>		
-		</div>		
+		</div>
+		
+		<canvas id="mainEditCanvas" class='output-canvas'></canvas>
+		
+		<div class='pane active' id='main-editor-tools' style='padding-left:0;padding-right:0;' name='Main Tools'>
+			<div class='sub-pane smaller-font' id='project-navigator' name='Navigator' style='margin-top: -0.7em;'>
+				<div class='list' id='navigator-list' style='min-height:3.5em;max-height:360px;'>
+					No Stage Selected...
+				</div>
+			</div>
+			<div class='sub-pane smaller-font no-padding' id='tool-rack'>
+				<a href='#' act='create-plane' class='button inline'>
+					Create-Plane
+				</a>
+				<a href='#' act='create-plane' class='button inline'>
+					Create-Layer
+				</a>
+				<hr>
+				<a href='#' act='change-tool' act-value='pen-tool' class='button inline'>
+					Pen
+				</a>
+				<a href='#' act='change-tool' act-value='eraser-tool' class='button inline'>
+					Eraser
+				</a>			
+			</div>
+		</div>
+		
+		<div class='pane abs-center' id='sheet-management' name='Sheet Assets'>
+			<a href='#' class='button inline' click-act='start-import-sheet-into-project'>Import</a>
+			<input id='hidden-sheet-input' type='file' style='visibility:hidden;'></input>
+			<div class='list' id='sheet-management-list' style='min-height:3.5em;max-height:360px; width:360px;'>
+					No Sheets
+			</div>
+			<a href='#' class='button inline' click-act='close-pane'>Done</a>
+		</div>
+
+
+		
 	</div>
 	
 	<div class='full-wrap' id='sheet-editor'>
@@ -95,7 +132,7 @@
 				<div class='menu-item'>
 				<a href="#">About</a>
 					<div class='menu-section'>
-						<div class='menu-item'><a href="#" click-act='open-pane-element' t='credits'>Credits</a></div>
+						<div class='menu-item'><a href="#" click-act='open-pane-element'  act-value='credits'>Credits</a></div>
 						<div class='menu-item'><a href="#">Wiki</a></div>
 					</div>
 				</div>				
@@ -140,7 +177,7 @@
 	
 
 	<div class='pane abs-center active' id='start-menu' name='Start Menu'>
-		<a href='#' class='button' click-act='change-pane' t='new-project'>New Project</a>
+		<a href='#' class='button' click-act='change-pane' act-value='new-project'>New Project</a>
 		<a href='#' class='button'>Load Project</a>
 		<a href='#' class='button' click-act='open-sheet-editor'>Sheet Editor</a>
 	</div>
@@ -151,7 +188,7 @@
 		<div class='list' id='asset-import-list' style='max-height:160px;display:none;'></div>
 		<hr>
 		<div class='align-right'>
-		<a href='#' class='button inline' click-act='change-pane' t='start-menu'>Back</a>
+		<a href='#' class='button inline' click-act='change-pane'  act-value='start-menu'>Back</a>
 		<a href='#' class='button inline' click-act='confirm-new-project'>Confirm</a>
 		</div>
 	</div>
